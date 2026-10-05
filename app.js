@@ -1,4 +1,4 @@
-const ERP_URL='https://script.google.com/macros/s/AKfycbxber7tQoUqWmeC_RoY2vPgtao-69Hrl6AU5-GkgN79qbKDtasHiEGDjtmYt5azmLgF/exec';
+const ERP_URL='https://script.google.com/macros/s/AKfycbyDObDGZn15yjqxUjrrUET1arlW83fX0XNjuSdc2ZYOSvbZJkWYZ5uNtdvSyaB6Gt2S/exec';
 const offline=document.querySelector('#offline'),install=document.querySelector('#install'),installHelp=document.querySelector('#installHelp'),openSystem=document.querySelector('#openSystem');
 openSystem.href=ERP_URL;
 let installPrompt=null;
