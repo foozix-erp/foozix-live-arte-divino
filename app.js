@@ -1,6 +1,11 @@
 const ERP_URL='https://script.google.com/macros/s/AKfycbyDObDGZn15yjqxUjrrUET1arlW83fX0XNjuSdc2ZYOSvbZJkWYZ5uNtdvSyaB6Gt2S/exec';
-const offline=document.querySelector('#offline'),install=document.querySelector('#install'),installHelp=document.querySelector('#installHelp'),openSystem=document.querySelector('#openSystem');
-openSystem.href=ERP_URL;
+const offline=document.querySelector('#offline'),install=document.querySelector('#install'),installHelp=document.querySelector('#installHelp'),openSystem=document.querySelector('#openSystem'),copySystem=document.querySelector('#copySystem'),openStatus=document.querySelector('#openStatus');
+const isAndroid=/Android/i.test(navigator.userAgent);
+if(isAndroid){
+  const path=ERP_URL.replace(/^https:\/\//,'');
+  openSystem.href=`intent://${path}#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=${encodeURIComponent(ERP_URL)};end`;
+}else openSystem.href=ERP_URL;
+copySystem.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(ERP_URL);openStatus.textContent='تم نسخ الرابط. الصقه مباشرة في Chrome أو Safari.'}catch(_){openStatus.textContent=ERP_URL}});
 let installPrompt=null;
 function connectivity(){offline.classList.toggle('hidden',navigator.onLine)}
 window.addEventListener('online',connectivity);window.addEventListener('offline',connectivity);
