@@ -1,6 +1,6 @@
 const ERP_URL='https://script.google.com/macros/s/AKfycbyDObDGZn15yjqxUjrrUET1arlW83fX0XNjuSdc2ZYOSvbZJkWYZ5uNtdvSyaB6Gt2S/exec';
 const TRUST_KEY='foozix.trusted.session.v1',YEAR_MS=365*24*60*60*1000;
-const offline=document.querySelector('#offline'),install=document.querySelector('#install'),installHelp=document.querySelector('#installHelp'),openSystem=document.querySelector('#openSystem'),copySystem=document.querySelector('#copySystem'),openStatus=document.querySelector('#openStatus'),brandSplash=document.querySelector('#brandSplash'),launcher=document.querySelector('#launcher'),systemHost=document.querySelector('#systemHost'),systemFrame=document.querySelector('#systemFrame');
+const offline=document.querySelector('#offline'),install=document.querySelector('#install'),installHelp=document.querySelector('#installHelp'),openSystem=document.querySelector('#openSystem'),copySystem=document.querySelector('#copySystem'),openStatus=document.querySelector('#openStatus'),brandSplash=document.querySelector('#brandSplash'),launcher=document.querySelector('#launcher');
 const hash=new URLSearchParams(location.hash.replace(/^#/,''));
 if(hash.has('logout')||hash.has('expired'))localStorage.removeItem(TRUST_KEY);
 if(hash.get('session'))localStorage.setItem(TRUST_KEY,JSON.stringify({token:hash.get('session'),expiresAt:Date.now()+YEAR_MS}));
@@ -8,7 +8,12 @@ if(location.hash)history.replaceState(null,'',location.pathname+location.search)
 function trusted(){try{const v=JSON.parse(localStorage.getItem(TRUST_KEY)||'null');if(!v?.token||Number(v.expiresAt)<=Date.now()){localStorage.removeItem(TRUST_KEY);return null}return v}catch(_){localStorage.removeItem(TRUST_KEY);return null}}
 function systemUrl(token=''){return ERP_URL+'?source=pwa'+(token?'#session='+encodeURIComponent(token):'')}
 function showLauncher(){brandSplash.classList.add('hidden');launcher.classList.remove('hidden')}
-function enterSystem(token=''){brandSplash.classList.add('hidden');launcher.classList.add('hidden');systemHost.classList.remove('hidden');systemFrame.src=systemUrl(token)}
+function enterSystem(token=''){
+  const form=document.createElement('form');form.method='POST';form.action=ERP_URL;form.style.display='none';
+  const values={pwaLaunch:'1',source:'pwa',trusted:token};
+  Object.entries(values).forEach(([name,value])=>{const input=document.createElement('input');input.type='hidden';input.name=name;input.value=value;form.appendChild(input)});
+  document.body.appendChild(form);form.submit();
+}
 openSystem.href=systemUrl();
 openSystem.addEventListener('click',event=>{event.preventDefault();enterSystem()});
 const saved=trusted();
