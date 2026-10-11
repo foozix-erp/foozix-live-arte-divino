@@ -1,6 +1,6 @@
 const ERP_URL='https://script.google.com/macros/s/AKfycbyDObDGZn15yjqxUjrrUET1arlW83fX0XNjuSdc2ZYOSvbZJkWYZ5uNtdvSyaB6Gt2S/exec';
 const TRUST_KEY='foozix.trusted.session.v1',YEAR_MS=365*24*60*60*1000;
-const offline=document.querySelector('#offline'),install=document.querySelector('#install'),installHelp=document.querySelector('#installHelp'),openSystem=document.querySelector('#openSystem'),copySystem=document.querySelector('#copySystem'),openStatus=document.querySelector('#openStatus'),brandSplash=document.querySelector('#brandSplash'),launcher=document.querySelector('#launcher');
+const offline=document.querySelector('#offline'),install=document.querySelector('#install'),installHelp=document.querySelector('#installHelp'),openSystem=document.querySelector('#openSystem'),copySystem=document.querySelector('#copySystem'),openStatus=document.querySelector('#openStatus'),brandSplash=document.querySelector('#brandSplash'),launcher=document.querySelector('#launcher'),systemHost=document.querySelector('#systemHost'),systemFrame=document.querySelector('#systemFrame');
 const hash=new URLSearchParams(location.hash.replace(/^#/,''));
 if(hash.has('logout')||hash.has('expired'))localStorage.removeItem(TRUST_KEY);
 if(hash.get('session'))localStorage.setItem(TRUST_KEY,JSON.stringify({token:hash.get('session'),expiresAt:Date.now()+YEAR_MS}));
@@ -8,8 +8,9 @@ if(location.hash)history.replaceState(null,'',location.pathname+location.search)
 function trusted(){try{const v=JSON.parse(localStorage.getItem(TRUST_KEY)||'null');if(!v?.token||Number(v.expiresAt)<=Date.now()){localStorage.removeItem(TRUST_KEY);return null}return v}catch(_){localStorage.removeItem(TRUST_KEY);return null}}
 function systemUrl(token=''){return ERP_URL+'?source=pwa'+(token?'#session='+encodeURIComponent(token):'')}
 function showLauncher(){brandSplash.classList.add('hidden');launcher.classList.remove('hidden')}
-function enterSystem(token){location.replace(systemUrl(token))}
+function enterSystem(token=''){brandSplash.classList.add('hidden');launcher.classList.add('hidden');systemHost.classList.remove('hidden');systemFrame.src=systemUrl(token)}
 openSystem.href=systemUrl();
+openSystem.addEventListener('click',event=>{event.preventDefault();enterSystem()});
 const saved=trusted();
 setTimeout(()=>saved?enterSystem(saved.token):showLauncher(),1100);
 copySystem.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(systemUrl());openStatus.textContent='تم نسخ رابط النظام.'}catch(_){openStatus.textContent=systemUrl()}});
@@ -22,3 +23,4 @@ window.addEventListener('appinstalled',()=>{install.classList.add('hidden');inst
 if('serviceWorker'in navigator)navigator.serviceWorker.register('./service-worker.js',{scope:'./'}).then(reg=>reg.update()).catch(()=>installHelp.classList.remove('hidden'));
 setTimeout(()=>{if(!installPrompt&&!matchMedia('(display-mode: standalone)').matches)installHelp.classList.remove('hidden')},2500);
 connectivity();
+
