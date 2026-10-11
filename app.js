@@ -1,4 +1,4 @@
-const ERP_URL='https://script.google.com/macros/s/AKfycbxber7tQoUqWmeC_RoY2vPgtao-69Hrl6AU5-GkgN79qbKDtasHiEGDjtmYt5azmLgF/exec';
+const ERP_URL='https://script.google.com/macros/s/AKfycbz8Ju6yAIhckZQflQ6gdBX3fg_86PDSDreBC0ZtOxyLxRyY8tozV6CHyWNudkOKVNN-/exec';
 const TRUST_KEY='foozix.trusted.session.v1',YEAR_MS=365*24*60*60*1000;
 const offline=document.querySelector('#offline'),install=document.querySelector('#install'),installHelp=document.querySelector('#installHelp'),openSystem=document.querySelector('#openSystem'),copySystem=document.querySelector('#copySystem'),openStatus=document.querySelector('#openStatus'),brandSplash=document.querySelector('#brandSplash'),launcher=document.querySelector('#launcher');
 const hash=new URLSearchParams(location.hash.replace(/^#/,''));
