@@ -9,6 +9,11 @@ function trusted(){try{const v=JSON.parse(localStorage.getItem(TRUST_KEY)||'null
 function systemUrl(token=''){return ERP_URL+'?source=pwa'+(token?'#session='+encodeURIComponent(token):'')}
 function showLauncher(){brandSplash.classList.add('hidden');launcher.classList.remove('hidden')}
 function enterSystem(token=''){
+  if(/Android/i.test(navigator.userAgent)){
+    const target=ERP_URL+'?source=pwa';
+    const intent='intent://'+target.replace(/^https:\/\//,'')+'#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url='+encodeURIComponent(target)+';end';
+    location.assign(intent);return;
+  }
   const form=document.createElement('form');form.method='POST';form.action=ERP_URL;form.style.display='none';
   const values={pwaLaunch:'1',source:'pwa',trusted:token};
   Object.entries(values).forEach(([name,value])=>{const input=document.createElement('input');input.type='hidden';input.name=name;input.value=value;form.appendChild(input)});
@@ -28,4 +33,3 @@ window.addEventListener('appinstalled',()=>{install.classList.add('hidden');inst
 if('serviceWorker'in navigator)navigator.serviceWorker.register('./service-worker.js',{scope:'./'}).then(reg=>reg.update()).catch(()=>installHelp.classList.remove('hidden'));
 setTimeout(()=>{if(!installPrompt&&!matchMedia('(display-mode: standalone)').matches)installHelp.classList.remove('hidden')},2500);
 connectivity();
-
