@@ -1,4 +1,4 @@
-const ERP_URL='https://script.google.com/macros/s/AKfycbyDObDGZn15yjqxUjrrUET1arlW83fX0XNjuSdc2ZYOSvbZJkWYZ5uNtdvSyaB6Gt2S/exec';
+const ERP_URL='https://script.google.com/macros/s/AKfycbxber7tQoUqWmeC_RoY2vPgtao-69Hrl6AU5-GkgN79qbKDtasHiEGDjtmYt5azmLgF/exec';
 const TRUST_KEY='foozix.trusted.session.v1',YEAR_MS=365*24*60*60*1000;
 const offline=document.querySelector('#offline'),install=document.querySelector('#install'),installHelp=document.querySelector('#installHelp'),openSystem=document.querySelector('#openSystem'),copySystem=document.querySelector('#copySystem'),openStatus=document.querySelector('#openStatus'),brandSplash=document.querySelector('#brandSplash'),launcher=document.querySelector('#launcher');
 const hash=new URLSearchParams(location.hash.replace(/^#/,''));
@@ -9,15 +9,7 @@ function trusted(){try{const v=JSON.parse(localStorage.getItem(TRUST_KEY)||'null
 function systemUrl(token=''){return ERP_URL+'?source=pwa'+(token?'#session='+encodeURIComponent(token):'')}
 function showLauncher(){brandSplash.classList.add('hidden');launcher.classList.remove('hidden')}
 function enterSystem(token=''){
-  if(/Android/i.test(navigator.userAgent)){
-    const target=ERP_URL+'?source=pwa';
-    const intent='intent://'+target.replace(/^https:\/\//,'')+'#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url='+encodeURIComponent(target)+';end';
-    location.assign(intent);return;
-  }
-  const form=document.createElement('form');form.method='POST';form.action=ERP_URL;form.style.display='none';
-  const values={pwaLaunch:'1',source:'pwa',trusted:token};
-  Object.entries(values).forEach(([name,value])=>{const input=document.createElement('input');input.type='hidden';input.name=name;input.value=value;form.appendChild(input)});
-  document.body.appendChild(form);form.submit();
+  location.assign(systemUrl(token));
 }
 openSystem.href=systemUrl();
 openSystem.addEventListener('click',event=>{event.preventDefault();enterSystem()});
@@ -33,3 +25,4 @@ window.addEventListener('appinstalled',()=>{install.classList.add('hidden');inst
 if('serviceWorker'in navigator)navigator.serviceWorker.register('./service-worker.js',{scope:'./'}).then(reg=>reg.update()).catch(()=>installHelp.classList.remove('hidden'));
 setTimeout(()=>{if(!installPrompt&&!matchMedia('(display-mode: standalone)').matches)installHelp.classList.remove('hidden')},2500);
 connectivity();
+
