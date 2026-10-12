@@ -1,4 +1,4 @@
-const CACHE='foozix-live-v3.21.7-direct-post-launch';
+const CACHE='foozix-live-v3.21.8-public-get-launch';
 const SHELL=['./','./index.html','./app.css','./loader.css','./app.js','./manifest.webmanifest','./icon-192.png','./icon-512.png','./icon-maskable-512.png'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>Promise.allSettled(SHELL.map(url=>cache.add(url)))).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
