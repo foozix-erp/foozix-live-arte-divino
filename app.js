@@ -9,7 +9,13 @@ function trusted(){try{const v=JSON.parse(localStorage.getItem(TRUST_KEY)||'null
 function systemUrl(token=''){return ERP_URL+'?source=pwa'+(token?'#session='+encodeURIComponent(token):'')}
 function showLauncher(){brandSplash.classList.add('hidden');launcher.classList.remove('hidden')}
 function enterSystem(token=''){
-  location.assign(systemUrl(token));
+  const target=systemUrl(token);
+  if(/Android/i.test(navigator.userAgent)){
+    const plain=target.replace(/^https:\/\//,'');
+    location.href='intent://'+plain+'#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url='+encodeURIComponent(target)+';end';
+    return;
+  }
+  location.assign(target);
 }
 openSystem.href=systemUrl();
 openSystem.addEventListener('click',event=>{event.preventDefault();enterSystem()});
@@ -25,4 +31,3 @@ window.addEventListener('appinstalled',()=>{install.classList.add('hidden');inst
 if('serviceWorker'in navigator)navigator.serviceWorker.register('./service-worker.js',{scope:'./'}).then(reg=>reg.update()).catch(()=>installHelp.classList.remove('hidden'));
 setTimeout(()=>{if(!installPrompt&&!matchMedia('(display-mode: standalone)').matches)installHelp.classList.remove('hidden')},2500);
 connectivity();
-
