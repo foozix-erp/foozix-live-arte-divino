@@ -11,7 +11,7 @@ function showLauncher(){brandSplash.classList.add('hidden');launcher.classList.r
 function enterSystem(){
   brandSplash.classList.add('hidden');
   launcher.classList.add('hidden');
-  erpFrame.src=ERP_URL+'?source=pwa&embedded=1';
+  erpFrame.src=ERP_URL+'?source=pwa&embedded=1&build=3220';
   erpFrame.classList.remove('hidden');
 }
 openSystem.href=systemUrl();
