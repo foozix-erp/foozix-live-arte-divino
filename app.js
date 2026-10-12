@@ -9,13 +9,21 @@ function trusted(){try{const v=JSON.parse(localStorage.getItem(TRUST_KEY)||'null
 function systemUrl(token=''){return ERP_URL+'?source=pwa'+(token?'#session='+encodeURIComponent(token):'')}
 function showLauncher(){brandSplash.classList.add('hidden');launcher.classList.remove('hidden')}
 function enterSystem(token=''){
-  const target=systemUrl(token);
-  if(/Android/i.test(navigator.userAgent)){
-    const plain=target.replace(/^https:\/\//,'');
-    location.href='intent://'+plain+'#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url='+encodeURIComponent(target)+';end';
-    return;
-  }
-  location.assign(target);
+  // Direct browser POST prevents Android from handing the Apps Script URL to Drive.
+  const form=document.createElement('form');
+  form.method='POST';
+  form.action=ERP_URL;
+  form.style.display='none';
+  const fields={pwaLaunch:'1',source:'pwa',trusted:token||''};
+  Object.entries(fields).forEach(([name,value])=>{
+    const input=document.createElement('input');
+    input.type='hidden';
+    input.name=name;
+    input.value=value;
+    form.appendChild(input);
+  });
+  document.body.appendChild(form);
+  form.submit();
 }
 openSystem.href=systemUrl();
 openSystem.addEventListener('click',event=>{event.preventDefault();enterSystem()});
