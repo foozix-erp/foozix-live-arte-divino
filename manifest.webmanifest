@@ -1,22 +1,29 @@
 {
   "name": "FOOZIX Live — Arte Divino",
   "short_name": "FOOZIX Live",
-  "description": "نظام Arte Divino المالي والتشغيلي",
+  "start_url": "./?v=4.1.0",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f8f7",
+  "theme_color": "#178B7A",
   "lang": "ar",
   "dir": "rtl",
-  "id": "/foozix-live-arte-divino/mobile-v2",
-  "start_url": "/foozix-live-arte-divino/?source=pwa&v=3220",
-  "scope": "/foozix-live-arte-divino/",
-  "display": "standalone",
-  "display_override": ["standalone", "minimal-ui"],
-  "orientation": "any",
-  "background_color": "#f4f5f5",
-  "theme_color": "#178b7a",
   "icons": [
-    {"src":"icon-192.png","sizes":"192x192","type":"image/png","purpose":"any"},
-    {"src":"icon-512.png","sizes":"512x512","type":"image/png","purpose":"any"},
-    {"src":"icon-maskable-512.png","sizes":"512x512","type":"image/png","purpose":"maskable"}
-  ],
-  "categories": ["business", "finance", "productivity"],
-  "prefer_related_applications": false
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
 }
