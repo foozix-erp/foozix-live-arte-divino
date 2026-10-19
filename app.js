@@ -11,8 +11,32 @@ const latinDigits_=v=>String(v??'').replace(/[٠-٩]/g,d=>String('٠١٢٣٤٥٦
 const t=k=>I18N[state.lang][k]||k, esc=v=>latinDigits_(v).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
 const isTrue_=v=>v===true||String(v).toLowerCase()==='true'||String(v)==='1';
 const money=v=>new Intl.NumberFormat('en-US',{numberingSystem:'latn',minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(v||0))+' '+(state.lang==='ar'?'ج.م':'EGP');
-function sessionToken_(){if(state.urlSession)return state.urlSession;const local=localStorage.getItem('foozix.session')||'';if(local)return local;const named=String(window.name||'').startsWith('FOOZIX_SESSION:')?String(window.name).slice(15):'';if(named){try{localStorage.setItem('foozix.session',named)}catch(e){}return named}const match=document.cookie.match(/(?:^|; )foozix_session=([^;]+)/);return match?decodeURIComponent(match[1]):''}
-function restoreSessionFromUrl_(){return new Promise(resolve=>{const existing=sessionToken_(),launch=window.__FOOZIX_LAUNCH__||{};if(launch.session||launch.source){state.urlSession=String(launch.session||existing||'');state.launchSource=String(launch.source||'');resolve(state.urlSession);return}if(!isAppsScriptHost_()){const params=new URLSearchParams(location.search),hash=new URLSearchParams(location.hash.replace(/^#/,'')),incoming=hash.get('session')||params.get('session')||'';if(incoming)state.urlSession=incoming;state.launchSource=params.get('source')||'pwa';resolve(state.urlSession||existing);return}try{google.script.url.getLocation(location=>{const match=String(location&&location.hash||'').match(/(?:^|&)session=([^&]+)/);const incoming=match?decodeURIComponent(match[1]):'';if(incoming)state.urlSession=incoming;state.launchSource=String(location?.parameter?.source||'');resolve(state.urlSession||existing)})}catch(e){resolve(existing)}})}
+function sessionToken_(){
+  if(state.urlSession)return state.urlSession;
+  try{const local=localStorage.getItem('foozix.session');if(local)return local}catch(ignore){}
+  const named=String(window.name||'').startsWith('FOOZIX_SESSION:')?String(window.name).slice(15):'';
+  if(named){try{localStorage.setItem('foozix.session',named)}catch(ignore){}return named}
+  const match=String(document.cookie||'').match(/(?:^|; )foozix_session=([^;]+)/);
+  return match?decodeURIComponent(match[1]):'';
+}
+function restoreSessionFromUrl_(){
+  return new Promise(resolve=>{
+    const existing=sessionToken_(),launch=window.__FOOZIX_LAUNCH__||{};
+    state.launchSource=String(launch.source||'');
+    // A source label is not a session: it must never hide a URL-carried token.
+    if(launch.session){state.urlSession=String(launch.session);resolve(state.urlSession);return}
+    const accept=info=>{
+      const hash=new URLSearchParams(String(info?.hash||'').replace(/^#/,''));
+      const incoming=hash.get('session')||'';
+      if(incoming)state.urlSession=incoming;
+      state.launchSource=String(info?.parameter?.source||state.launchSource||'');
+      resolve(state.urlSession||existing);
+    };
+    if(!isAppsScriptHost_()){accept({hash:location.hash,parameter:{source:new URLSearchParams(location.search).get('source')||'pwa'}});return}
+    try{google.script.url.getLocation(accept)}catch(ignore){resolve(existing)}
+  });
+}
+
 function storeSessionToken_(token){token=String(token||'');if(!token)return;state.urlSession=token;try{localStorage.setItem('foozix.session',token)}catch(e){}window.name='FOOZIX_SESSION:'+token;try{document.cookie='foozix_session='+encodeURIComponent(token)+'; Max-Age=31536000; Path=/; SameSite=Lax; Secure'}catch(e){}try{if(isAppsScriptHost_())google.script.history.replace({}, {source:state.launchSource||''}, 'session='+encodeURIComponent(token));else history.replaceState({},'',location.pathname)}catch(e){}}
 function clearSessionToken_(){state.urlSession='';try{localStorage.removeItem('foozix.session')}catch(e){}window.name='';try{document.cookie='foozix_session=; Max-Age=0; Path=/; SameSite=Lax; Secure'}catch(e){}try{if(isAppsScriptHost_())google.script.history.replace({}, {}, '');else history.replaceState({},'',location.pathname)}catch(e){}}
 const logo=()=>document.querySelector('#brandLogo').innerHTML;
