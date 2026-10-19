@@ -1,7 +1,7 @@
 {
   "name": "FOOZIX Live — Arte Divino",
   "short_name": "FOOZIX Live",
-  "start_url": "./?v=4.4.8",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "background_color": "#f4f8f7",
@@ -27,4 +27,3 @@
     }
   ]
 }
-
