@@ -445,6 +445,21 @@ function installCashControls_(){
 }
 document.addEventListener('DOMContentLoaded',()=>{installDropdowns_();installEditingControls_();installCashControls_()});
 
+// Transaction lookup data arrives with view.load. Changing type must not make a
+// second round trip or lose the selection when a late navigation render ends.
+const txFieldsWithPreloadedLookups_=txDynamicFields;
+const txDependenciesWithPreloadedLookups_=updateSmartTxDependencies;
+function withTransactionAgreements_(fn){const previous=state.data.agreements;state.data.agreements=state.data.transactionAgreements||[];try{return fn()}finally{state.data.agreements=previous}}
+txDynamicFields=function(type){return withTransactionAgreements_(()=>txFieldsWithPreloadedLookups_(type))};
+updateSmartTxDependencies=function(){return withTransactionAgreements_(()=>txDependenciesWithPreloadedLookups_())};
+document.addEventListener('change',event=>{
+  const select=event.target,form=select.closest?.('#tx');if(!form||select.name!=='type')return;
+  event.stopImmediatePropagation();document.querySelector('#txDynamic').innerHTML=txDynamicFields(select.value);
+  document.querySelector('#txSubmit').classList.toggle('hidden',!select.value);
+  form.onsubmit=async e=>{e.preventDefault();try{await submitSmartTx(form)}catch(error){fail(error)}};
+  updateSmartTxDependencies();
+},true);
+
 function reviewTaskCards_(rows){return `<section class="panel"><h2>${state.lang==='ar'?'الحركات والطلبات للمراجعة':'Transactions and requests for review'}</h2>${rows.length?rows.map(row=>`<article class="approval-card"><h3>${esc(row['المشروع']||row['الوحدة']||'')} — ${esc(row['نوع الإجراء']||'')}</h3><p>${esc(row['الوصف']||row['السبب']||'')}</p><p>${money(row['المبلغ']||0)} — ${esc(row['المنشئ']||'')}</p><button type="button" class="approval-detail-open" data-id="${esc(row['معرف الموافقة'])}">${state.lang==='ar'?'فتح التفاصيل والمراجعة':'Open details and review'}</button></article>`).join(''):`<p>${state.lang==='ar'?'لا توجد طلبات معلقة':'No pending requests'}</p>`}</section>`}
 approvals=function(){const corrections=state.data.corrections||[];return `<h1>${t('tasks')}</h1>${reviewTaskCards_(state.data.tasks||[])}<section class="panel"><h2>${state.lang==='ar'?'حركات مطلوب تصحيحها':'Transactions requiring correction'}</h2>${corrections.length?corrections.map(row=>`<article><p>${esc(row['الوصف']||'')} — ${money(row['المبلغ الأساسي'])}</p><p>${esc(row['سبب التصحيح']||'')}</p><button type="button" class="transaction-correct" data-id="${esc(row['معرف الحركة'])}">${state.lang==='ar'?'فتح وتعديل':'Open and correct'}</button></article>`).join(''):`<p>${state.lang==='ar'?'لا توجد حركات مطلوب تصحيحها':'No corrections requested'}</p>`}</section>${notificationCards()}`};
 const reviewDashboardBase_=dash;dash=function(){return reviewDashboardBase_()+((state.data.tasks||[]).length?reviewTaskCards_(state.data.tasks):'')};
@@ -504,5 +519,5 @@ masterEditPicker_=function(entity,items){
 masterIdField_=function(entity){return {client:'معرف العميل',project:'معرف المشروع',party:'معرف الطرف',employee:'معرف الموظف',asset:'معرف الأصل',cashAccount:'معرف الحساب النقدي',agreement:'معرف الاتفاق',finishItem:'معرف البند',expenseItem:'معرف بند المصروف'}[entity]};
 masterListKey_=function(entity){return {client:'clients',project:'projects',party:'parties',employee:'employees',asset:'assets',cashAccount:'cashAccounts',agreement:'agreements',finishItem:'finishItems',expenseItem:'expenseItems'}[entity]};
 const extendedEditorsView_=view;
-view=function(){let html=extendedEditorsView_();const entities={employees:['employee'],assets:['asset'],finance:['cashAccount'],settings:['finishItem','expenseItem'],parties:['agreement']};for(const entity of entities[state.view]||[]){if(!canAction(entityEditModule_(entity),'edit'))continue;const panel=masterEditPicker_(entity,state.data[masterListKey_(entity)]||[]);if(['employees','assets'].includes(state.view)&&html.includes('</form>'))html=html.replace('</form>','</form>'+panel);else html+=panel}return html};
+view=function(){if(state.loading)return '';let html=extendedEditorsView_();const entities={employees:['employee'],assets:['asset'],finance:['cashAccount'],settings:['finishItem','expenseItem'],parties:['agreement']};for(const entity of entities[state.view]||[]){if(!canAction(entityEditModule_(entity),'edit'))continue;const panel=masterEditPicker_(entity,state.data[masterListKey_(entity)]||[]);if(['employees','assets'].includes(state.view)&&html.includes('</form>'))html=html.replace('</form>','</form>'+panel);else html+=panel}return html};
 
