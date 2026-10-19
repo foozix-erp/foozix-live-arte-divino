@@ -407,7 +407,7 @@ async function extendMasterEditFields_(){
       if(relations[key]&&(state.data[relations[key][0]]||[]).length){
         input=document.createElement('select');const [list,id]=relations[key];input.innerHTML=selectedOptions_(state.data[list]||[],id,value);input.value=value||'';
       }else{
-        input=document.createElement('input');input.type=typeof value==='boolean'?'checkbox':typeof value==='number'?'number':/تاريخ/.test(key)&&/^\\d{4}-\\d{2}-\\d{2}$/.test(String(value))?'date':'text';
+        input=document.createElement('input');input.type=typeof value==='boolean'?'checkbox':typeof value==='number'?'number':/تاريخ/.test(key)&&/^\d{4}-\d{2}-\d{2}$/.test(String(value))?'date':'text';
         if(input.type==='checkbox')input.checked=value;else input.value=value??'';if(input.type==='number')input.step='any';
       }
       input.name=key;label.append(input);group.insertBefore(label,group.lastElementChild);
@@ -420,11 +420,6 @@ function installCashControls_(){
   document.addEventListener('change',()=>queueMicrotask(sync));new MutationObserver(sync).observe(document.querySelector('#app'),{childList:true,subtree:true});sync();
 }
 document.addEventListener('DOMContentLoaded',()=>{installDropdowns_();installEditingControls_();installCashControls_()});
-
-
-const submitSmartTxOnce_=submitSmartTx;submitSmartTx=async function(f){if(f.dataset.submitting)return;f.dataset.submitting='true';try{return await submitSmartTxOnce_(f)}finally{delete f.dataset.submitting}};
-
-
 
 const approvalCorrectionBase_=approvals;
 approvals=function(){let html=approvalCorrectionBase_();const rows=state.data.tasks||[];for(const row of rows){if(row['الوحدة']!=='TRANSACTION')continue;const marker=`data-id="${esc(row['معرف الموافقة'])}" data-value="APPROVE"`;const at=html.indexOf(marker);if(at<0)continue;const actions=html.lastIndexOf('<div class="actions">',at);if(actions>=0)html=html.slice(0,actions+21)+`<button type="button" class="transaction-correct" data-id="${esc(row['معرف السجل'])}">${state.lang==='ar'?'تعديل الحركة بنفسي':'Edit transaction directly'}</button>`+html.slice(actions+21)}const corrections=state.data.corrections||[];return html+`<section class="panel"><h2>${state.lang==='ar'?'حركات مطلوب تصحيحها':'Transactions requiring correction'}</h2>${corrections.length?corrections.map(row=>`<article><p>${esc(row['الوصف']||'')} — ${money(row['المبلغ الأساسي'])}</p><p>${esc(row['سبب التصحيح']||'')}</p><button type="button" class="transaction-correct" data-id="${esc(row['معرف الحركة'])}">${state.lang==='ar'?'فتح وتعديل':'Open and correct'}</button></article>`).join(''):`<p>${state.lang==='ar'?'لا توجد حركات مطلوب تصحيحها':'No corrections requested'}</p>`}</section>`};
@@ -446,9 +441,12 @@ async function openTransactionCorrection_(id){
 }
 document.addEventListener('click',event=>{const button=event.target.closest('.transaction-correct');if(!button)return;event.preventDefault();openTransactionCorrection_(button.dataset.id).catch(fail)});
 
-
-
 function entityEditModule_(entity){return {client:'clients',project:'projects',party:'parties',employee:'employees',asset:'assets',cashAccount:'finance',agreement:'agreements',finishItem:'settings',expenseItem:'settings'}[entity]}
+masterEditPicker_=function(entity,items){
+  if(!canAction(entityEditModule_(entity),'edit'))return '';
+  const idField=masterIdField_(entity),title={client:'العميل',project:'المشروع',party:'المورد / المقاول',employee:'الموظف',asset:'الأصل',cashAccount:'الحساب / الخزينة',agreement:'الاتفاق',finishItem:'بند التشطيب',expenseItem:'بند المصروف'}[entity]||entity;
+  return `<div class="panel master-edit-picker"><h2>${state.lang==='ar'?'تعديل سجل موجود':'Edit existing record'}</h2><label class="field">${esc(title)}<select class="master-edit-select" data-entity="${esc(entity)}"><option value=""></option>${items.map(row=>`<option value="${esc(row[idField])}">${esc(row['الاسم العربي']||row['الاسم الإنجليزي']||row['الاسم']||row['الوصف']||row['البند الفرعي']||row[idField])}</option>`).join('')}</select></label></div><div class="master-edit-form-host">${state.masterEdit?.entity===entity?masterEditForm_():''}</div>`;
+};
 masterIdField_=function(entity){return {client:'معرف العميل',project:'معرف المشروع',party:'معرف الطرف',employee:'معرف الموظف',asset:'معرف الأصل',cashAccount:'معرف الحساب النقدي',agreement:'معرف الاتفاق',finishItem:'معرف البند',expenseItem:'معرف بند المصروف'}[entity]};
 masterListKey_=function(entity){return {client:'clients',project:'projects',party:'parties',employee:'employees',asset:'assets',cashAccount:'cashAccounts',agreement:'agreements',finishItem:'finishItems',expenseItem:'expenseItems'}[entity]};
 const extendedEditorsView_=view;
