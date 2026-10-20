@@ -36,6 +36,46 @@ function restoreSessionFromUrl_(){
     try{google.script.url.getLocation(accept)}catch(ignore){resolve(existing)}
   });
 }
+function googleFlowStorage_(){
+  for(const name of ['sessionStorage','localStorage']){try{const storage=window[name];storage.setItem('foozix.google.probe','1');storage.removeItem('foozix.google.probe');return storage}catch(ignore){}}
+  throw new Error('اسمح بتخزين بيانات الموقع لإتمام الدخول بحساب Google / Allow site storage to sign in');
+}
+async function mountGoogleLogin_(){
+  const form=document.querySelector('#loginForm');if(!form)return;
+  if(isAppsScriptHost_()){
+    const link=document.createElement('a');link.href='https://foozix-erp.github.io/foozix-live-arte-divino/';link.target='_top';link.textContent=state.lang==='ar'?'افتح رابط البرنامج المعتمد للدخول بحساب Google':'Open the approved app to sign in with Google';form.prepend(link);return;
+  }
+  try{
+    const r=await api('auth.google.config');if(!r?.ok||!r.data?.enabled||!form.isConnected)return;
+    const button=document.createElement('button');button.type='button';button.id='googleLogin';button.textContent=state.lang==='ar'?'الدخول بحساب Google':'Sign in with Google';
+    form.prepend(button);
+    button.onclick=async()=>{
+      button.disabled=true;
+      try{
+        const storage=googleFlowStorage_(),bytes=new Uint8Array(32);crypto.getRandomValues(bytes);
+        const verifier=Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
+        const start=await api('auth.google.start',{browserVerifier:verifier});if(!start?.ok)throw new Error(start?.messageAr||'تعذر بدء الدخول');
+        const url=new URL(start.data.url);if(url.origin!=='https://accounts.google.com'||url.pathname!=='/o/oauth2/v2/auth')throw new Error('Invalid sign-in destination');
+        storage.setItem('foozix.google.flow',JSON.stringify({state:start.data.state,verifier:verifier,expires:Date.now()+600000}));
+        location.assign(url.href);
+      }catch(error){button.disabled=false;const notice=document.querySelector('#loginNotice');notice.className='notice error';notice.textContent=error.message}
+    };
+  }catch(ignore){/* The existing email fallback stays available on config/network failure. */}
+}
+async function finishGoogleLogin_(){
+  if(isAppsScriptHost_())return false;
+  const params=new URLSearchParams(location.search);if(!params.has('state')||(!params.has('code')&&!params.has('error')))return false;
+  let saved,storage;
+  for(const name of ['sessionStorage','localStorage']){try{const candidate=window[name],raw=candidate.getItem('foozix.google.flow');if(raw){const item=JSON.parse(raw);if(item.state===params.get('state')){saved=item;storage=candidate;break}}}catch(ignore){}}
+  // Clear authorization material from the address bar before any other view loads.
+  history.replaceState(null,'',location.pathname);
+  if(!saved||saved.expires<Date.now())throw new Error('انتهت محاولة دخول Google. افتح تسجيل الدخول وحاول مجددًا.');
+  storage.removeItem('foozix.google.flow');
+  if(params.has('error'))throw new Error('لم تكتمل موافقة Google. أعد تسجيل الدخول.');
+  const r=await api('auth.google.exchange',{code:params.get('code'),state:saved.state,browserVerifier:saved.verifier});
+  if(!r?.ok)throw new Error(r?.messageAr||'تعذر إتمام دخول Google');
+  storeSessionToken_(r.data.token);return true;
+}
 
 function storeSessionToken_(token){token=String(token||'');if(!token)return;state.urlSession=token;try{localStorage.setItem('foozix.session',token)}catch(e){}window.name='FOOZIX_SESSION:'+token;try{document.cookie='foozix_session='+encodeURIComponent(token)+'; Max-Age=31536000; Path=/; SameSite=Lax; Secure'}catch(e){}try{if(isAppsScriptHost_())google.script.history.replace({}, {source:state.launchSource||''}, 'session='+encodeURIComponent(token));else history.replaceState({},'',location.pathname)}catch(e){}}
 function clearSessionToken_(){state.urlSession='';try{localStorage.removeItem('foozix.session')}catch(e){}window.name='';try{document.cookie='foozix_session=; Max-Age=0; Path=/; SameSite=Lax; Secure'}catch(e){}try{if(isAppsScriptHost_())google.script.history.replace({}, {}, '');else history.replaceState({},'',location.pathname)}catch(e){}}
@@ -105,6 +145,7 @@ function loginView(message='',presetEmail=''){
   const showSent=(data)=>{showCodeEntry();form.code.value='';notice.className='notice ok';const ref=data?.requestRef?(' ['+data.requestRef+']'):'';notice.textContent=(state.lang==='ar'?'تم إرسال رمز جديد':'A new code was sent')+ref+(state.lang==='ar'?' إلى ':' to ')+(data?.masked||form.email.value)+(state.lang==='ar'?' — استخدم أحدث رسالة فقط.':' — use the newest message only.');let seconds=30;resend.classList.remove('hidden');resend.disabled=true;resend.textContent=(state.lang==='ar'?'إعادة الإرسال خلال ':'Resend in ')+seconds;clearInterval(resendTimer);resendTimer=setInterval(()=>{seconds--;if(seconds<=0){clearInterval(resendTimer);resend.disabled=false;resend.textContent=state.lang==='ar'?'إعادة إرسال الرمز':'Resend code'}else resend.textContent=(state.lang==='ar'?'إعادة الإرسال خلال ':'Resend in ')+seconds},1000)};
   const requestCode=async()=>{button.disabled=true;button.textContent=state.lang==='ar'?'جارٍ إرسال الرمز…':'Sending code…';notice.className='notice';notice.textContent=state.lang==='ar'?'جارٍ إرسال رمز الدخول…':'Sending your login code…';const r=await api('auth.requestCode',{email:form.email.value,resend:sent});if(!r?.ok)throw new Error(state.lang==='ar'?r?.messageAr:r?.messageEn);showSent(r.data)};
   resend.onclick=async()=>{try{resend.disabled=true;await requestCode()}catch(error){notice.className='notice error';notice.textContent=error.message;resend.disabled=false}};
+  mountGoogleLogin_();
   form.onsubmit=async event=>{event.preventDefault();try{button.disabled=true;if(!sent)return await requestCode();button.textContent=t('loading');const r=await api('auth.verifyCode',{email:form.email.value,code:form.code.value});if(!r?.ok)throw new Error(state.lang==='ar'?r?.messageAr:r?.messageEn);storeSessionToken_(r.data.token);await boot()}catch(error){button.disabled=false;button.textContent=sent?(state.lang==='ar'?'تسجيل الدخول':'Sign in'):(state.lang==='ar'?'إرسال رمز الدخول':'Send login code');notice.className='notice error';notice.textContent=error.message}};
 }
 function foozixLoader_(compact=false){return `<div class="foozix-loader ${compact?'compact':''}" role="status" aria-label="Loading"><div class="foozix-orbit"><span>F</span><span>O</span><span>O</span><span>Z</span><span>I</span><span>X</span></div><small class="loading-copy">Loading</small></div>`}
@@ -163,6 +204,7 @@ function applyBootstrap_(data){if(!data||!data.profile)throw new Error(state.lan
 async function boot(){
   syncMobileMode();splash();
   try{
+    if(typeof finishGoogleLogin_==='function')await finishGoogleLogin_();
     await restoreSessionFromUrl_();
     if(!sessionToken_())return loginView();
     const r=await api('app.bootstrap');
@@ -576,4 +618,3 @@ masterIdField_=function(entity){return {client:'معرف العميل',project:'
 masterListKey_=function(entity){return {client:'clients',project:'projects',party:'parties',employee:'employees',asset:'assets',cashAccount:'cashAccounts',agreement:'agreements',finishItem:'finishItems',expenseItem:'expenseItems'}[entity]};
 const extendedEditorsView_=view;
 view=function(){if(state.loading)return '';let html=extendedEditorsView_();const entities={employees:['employee'],assets:['asset'],finance:['cashAccount'],settings:['finishItem','expenseItem'],parties:['agreement']};for(const entity of entities[state.view]||[]){if(!canAction(entityEditModule_(entity),'edit'))continue;const panel=masterEditPicker_(entity,state.data[masterListKey_(entity)]||[]);if(['employees','assets'].includes(state.view)&&html.includes('</form>'))html=html.replace('</form>','</form>'+panel);else html+=panel}return html};
-
