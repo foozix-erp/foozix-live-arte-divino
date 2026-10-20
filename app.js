@@ -46,21 +46,22 @@ async function mountGoogleLogin_(){
     const link=document.createElement('a');link.href='https://foozix-erp.github.io/foozix-live-arte-divino/';link.target='_top';link.textContent=state.lang==='ar'?'افتح رابط البرنامج المعتمد للدخول بحساب Google':'Open the approved app to sign in with Google';form.prepend(link);return;
   }
   try{
-    const r=await api('auth.google.config');if(!r?.ok||!r.data?.enabled||!form.isConnected)return;
-    const button=document.createElement('button');button.type='button';button.id='googleLogin';button.textContent=state.lang==='ar'?'الدخول بحساب Google':'Sign in with Google';
-    form.prepend(button);
+    const r=await api('auth.google.config');if(!form.isConnected)return;if(!r?.ok||!r.data?.enabled)throw new Error(state.lang==='ar'?'تعذر تجهيز الدخول؛ اضغط الزر لإعادة المحاولة.':'Sign-in is not ready; press the button to retry.');
+    const button=form.querySelector('#googleLogin')||document.createElement('button');button.type='button';button.id='googleLogin';button.textContent=state.lang==='ar'?'الدخول بحساب Google':'Sign in with Google';button.disabled=false;
+    if(!button.isConnected)form.append(button);
     button.onclick=async()=>{
+      const email=form.querySelector('input[name="email"]');if(email&&!email.reportValidity())return;
       button.disabled=true;
       try{
         const storage=googleFlowStorage_(),bytes=new Uint8Array(32);crypto.getRandomValues(bytes);
         const verifier=Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
-        const start=await api('auth.google.start',{browserVerifier:verifier});if(!start?.ok)throw new Error(start?.messageAr||'تعذر بدء الدخول');
+        const start=await api('auth.google.start',{browserVerifier:verifier,loginHint:email?.value.trim()||''});if(!start?.ok)throw new Error(start?.messageAr||'تعذر بدء الدخول');
         const url=new URL(start.data.url);if(url.origin!=='https://accounts.google.com'||url.pathname!=='/o/oauth2/v2/auth')throw new Error('Invalid sign-in destination');
         storage.setItem('foozix.google.flow',JSON.stringify({state:start.data.state,verifier:verifier,expires:Date.now()+600000}));
         location.assign(url.href);
       }catch(error){button.disabled=false;const notice=document.querySelector('#loginNotice');notice.className='notice error';notice.textContent=error.message}
     };
-  }catch(ignore){/* The existing email fallback stays available on config/network failure. */}
+  }catch(error){if(!form.isConnected)return;const notice=form.querySelector('#loginNotice');if(notice){notice.className='notice error';notice.textContent=error.message}const retry=form.querySelector('#googleLogin');if(retry){retry.disabled=false;retry.onclick=()=>{retry.disabled=true;mountGoogleLogin_()}}}
 }
 async function finishGoogleLogin_(){
   if(isAppsScriptHost_())return false;
@@ -138,15 +139,10 @@ const api=(action,payload={})=>{
   return result;
 };
 function loginView(message='',presetEmail=''){
-
-  document.querySelector('#app').innerHTML=`<section class="splash"><form id="loginForm" class="brand panel"><div class="login-logo">${logo()}</div><p>${t('powered')}</p>${message?`<div class="notice error">${esc(message)}</div>`:''}<div id="loginNotice"></div><label class="field">${t('email')}<input name="email" type="email" autocomplete="email" value="${esc(presetEmail)}" required></label><div id="codeField" class="hidden"><label class="field">${state.lang==='ar'?'رمز الدخول المرسل إلى البريد الإلكتروني':'Login code sent by email'}<input name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6"></label><button type="button" class="secondary hidden" id="resendCode">${state.lang==='ar'?'إعادة إرسال رمز الدخول':'Resend login code'}</button></div><button class="primary" id="loginSubmit">${state.lang==='ar'?'إرسال رمز الدخول':'Send login code'}</button></form></section>`;
-  let sent=false,resendTimer=null;const form=document.querySelector('#loginForm'),button=document.querySelector('#loginSubmit'),resend=document.querySelector('#resendCode'),notice=document.querySelector('#loginNotice');
-  const showCodeEntry=()=>{sent=true;form.email.readOnly=true;document.querySelector('#codeField').classList.remove('hidden');button.textContent=state.lang==='ar'?'تسجيل الدخول':'Sign in';button.disabled=false;form.code.required=true;form.code.focus()};
-  const showSent=(data)=>{showCodeEntry();form.code.value='';notice.className='notice ok';const ref=data?.requestRef?(' ['+data.requestRef+']'):'';notice.textContent=(state.lang==='ar'?'تم إرسال رمز جديد':'A new code was sent')+ref+(state.lang==='ar'?' إلى ':' to ')+(data?.masked||form.email.value)+(state.lang==='ar'?' — استخدم أحدث رسالة فقط.':' — use the newest message only.');let seconds=30;resend.classList.remove('hidden');resend.disabled=true;resend.textContent=(state.lang==='ar'?'إعادة الإرسال خلال ':'Resend in ')+seconds;clearInterval(resendTimer);resendTimer=setInterval(()=>{seconds--;if(seconds<=0){clearInterval(resendTimer);resend.disabled=false;resend.textContent=state.lang==='ar'?'إعادة إرسال الرمز':'Resend code'}else resend.textContent=(state.lang==='ar'?'إعادة الإرسال خلال ':'Resend in ')+seconds},1000)};
-  const requestCode=async()=>{button.disabled=true;button.textContent=state.lang==='ar'?'جارٍ إرسال الرمز…':'Sending code…';notice.className='notice';notice.textContent=state.lang==='ar'?'جارٍ إرسال رمز الدخول…':'Sending your login code…';const r=await api('auth.requestCode',{email:form.email.value,resend:sent});if(!r?.ok)throw new Error(state.lang==='ar'?r?.messageAr:r?.messageEn);showSent(r.data)};
-  resend.onclick=async()=>{try{resend.disabled=true;await requestCode()}catch(error){notice.className='notice error';notice.textContent=error.message;resend.disabled=false}};
+  document.querySelector('#app').innerHTML=`<section class="splash"><form id="loginForm" class="brand panel"><div class="login-logo">${logo()}</div><p>${t('powered')}</p>${message?`<div class="notice error">${esc(message)}</div>`:''}<div id="loginNotice" role="status"></div><label class="field">${t('email')} ${state.lang==='ar'?'(اختياري)':'(optional)'}<input name="email" type="email" autocomplete="email" value="${esc(presetEmail)}"></label><p>${state.lang==='ar'?'اكتب بريدك أو اتركه فارغًا لاختيار حسابك عند Google. لو الحساب مش موجود، اختر «استخدام حساب آخر».':'Enter your email or leave it blank to choose your Google account. Select “Use another account” if it is not listed.'}</p><button type="button" class="primary" id="googleLogin" disabled>${state.lang==='ar'?'الدخول بحساب Google':'Sign in with Google'}</button></form></section>`;
+  const form=document.querySelector('#loginForm');
+  form.onsubmit=event=>{event.preventDefault();document.querySelector('#googleLogin')?.click()};
   mountGoogleLogin_();
-  form.onsubmit=async event=>{event.preventDefault();try{button.disabled=true;if(!sent)return await requestCode();button.textContent=t('loading');const r=await api('auth.verifyCode',{email:form.email.value,code:form.code.value});if(!r?.ok)throw new Error(state.lang==='ar'?r?.messageAr:r?.messageEn);storeSessionToken_(r.data.token);await boot()}catch(error){button.disabled=false;button.textContent=sent?(state.lang==='ar'?'تسجيل الدخول':'Sign in'):(state.lang==='ar'?'إرسال رمز الدخول':'Send login code');notice.className='notice error';notice.textContent=error.message}};
 }
 function foozixLoader_(compact=false){return `<div class="foozix-loader ${compact?'compact':''}" role="status" aria-label="Loading"><div class="foozix-orbit"><span>F</span><span>O</span><span>O</span><span>Z</span><span>I</span><span>X</span></div><small class="loading-copy">Loading</small></div>`}
 function splash(){document.querySelector('#app').innerHTML=`<section class="splash"><div class="brand">${logo()}<p>${t('powered')}</p>${foozixLoader_()}</div></section>`}
