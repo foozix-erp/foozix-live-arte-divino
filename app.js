@@ -418,12 +418,20 @@ function installDropdowns_(){
   let queued=false;new MutationObserver(records=>{if(records.every(r=>popup.contains(r.target)))return;if(!queued){queued=true;queueMicrotask(()=>{queued=false;upgrade()})}}).observe(document.body,{subtree:true,childList:true});upgrade();
 }
 
+const masterEditLoadingStates_=new WeakMap();
+function guardMasterEditSubmit_(event){const form=event.target;if(form.id!=='masterEdit'||form.dataset.extended==='ready')return;event.preventDefault();event.stopImmediatePropagation();let notice=form.querySelector('.master-edit-loading-notice');if(!notice){notice=document.createElement('p');notice.className='notice master-edit-loading-notice';form.prepend(notice)}notice.textContent=state.lang==='ar'?'استنى اكتمال تحميل بيانات التعديل قبل الحفظ.':'Wait for the complete editing data before saving.';}
+window.addEventListener('submit',guardMasterEditSubmit_,true);
 async function extendMasterEditFields_(){
-  const form=document.querySelector('#masterEdit');if(!form||form.dataset.extended)return;form.dataset.extended='true';
+  const form=document.querySelector('#masterEdit');if(!form||form.dataset.extended)return;form.dataset.extended='loading';form.setAttribute('aria-busy','true');
+  if(!masterEditLoadingStates_.has(form))masterEditLoadingStates_.set(form,new Map([...form.querySelectorAll('input,select,textarea,button:not([type="button"])')].map(input=>[input,input.disabled])));
+  for(const input of masterEditLoadingStates_.get(form).keys()){input.disabled=true;if(input.tagName==='BUTTON'){input.classList.add('is-loading');input.setAttribute('aria-busy','true')}}
   const entity=form.dataset.entity;
   try{
     const response=await api('master.editable',{entity,id:form.elements.id.value});if(!response.ok)throw new Error(msg(response));if(!form.isConnected)return;
     const record=response.data.record,allowed=response.data.fields;
+    for(const key of allowed){const input=form.elements.namedItem(key);if(!input||!('value'in input))continue;let value=record[key]??'';if(entity==='project'&&['النسبة العامة','نسبة الضريبة الافتراضية'].includes(key))value=Number(value||0)*100;if(input.type==='checkbox')input.checked=[true,1,'true','TRUE','1'].includes(value);else{if(input.tagName==='SELECT'&&value!==''&&![...input.options].some(option=>String(option.value)===String(value))){const option=document.createElement('option');option.value=value;option.textContent=value;input.append(option)}input.value=value}}
+    if(form.elements.version)form.elements.version.value=String(record['الإصدار']||0);
+    if(entity==='party'&&form.querySelector('#editCapabilityRows')){const capabilities=parseJsonArray_(record['قدرات العمل']);form.querySelector('#editCapabilityRows').innerHTML=(capabilities.length?capabilities:[{}]).map(editCapabilityRow_).join('')}
     if(['asset','cashAccount','agreement','expenseItem'].includes(entity))form.querySelectorAll('[name="الاسم العربي"],[name="الاسم الإنجليزي"]').forEach(input=>input.closest('label').remove());
     const relations={'معرف العميل':['clients','معرف العميل'],'معرف المشروع':['projects','معرف المشروع'],'معرف الطرف':['parties','معرف الطرف'],'معرف بند التشطيب':['finishItems','معرف البند'],'معرف المدير':['employees','معرف الموظف']};
     const group=form.querySelector('.form-grid');
@@ -437,11 +445,30 @@ async function extendMasterEditFields_(){
       }
       input.name=key;label.append(input);group.insertBefore(label,group.lastElementChild);
     }
-  }catch(error){const notice=document.createElement('p');notice.className='notice error';notice.textContent=error.message;form.prepend(notice)}
+    form.dataset.extended='ready';form.removeAttribute('aria-busy');for(const [input,disabled]of masterEditLoadingStates_.get(form))if(input.isConnected){input.disabled=disabled;if(input.tagName==='BUTTON'){input.classList.remove('is-loading');input.removeAttribute('aria-busy')}}form.querySelector('.master-edit-loading-notice')?.remove();form.querySelector('.master-edit-load-error')?.remove();
+  }catch(error){if(!form.isConnected)return;form.dataset.extended='failed';form.removeAttribute('aria-busy');for(const input of masterEditLoadingStates_.get(form).keys())if(input.tagName==='BUTTON'){input.classList.remove('is-loading');input.removeAttribute('aria-busy')}form.querySelector('.master-edit-load-error')?.remove();const notice=document.createElement('div');notice.className='notice error master-edit-load-error';const text=document.createElement('p');text.textContent=error.message;const retry=document.createElement('button');retry.type='button';retry.textContent=state.lang==='ar'?'إعادة تحميل بيانات التعديل':'Reload editing data';retry.onclick=()=>{notice.remove();delete form.dataset.extended;extendMasterEditFields_()};notice.append(text,retry);form.prepend(notice)}
 }
 function installEditingControls_(){new MutationObserver(()=>extendMasterEditFields_()).observe(document.querySelector('#app'),{childList:true,subtree:true});extendMasterEditFields_()}
 function installCashControls_(){
-  const sync=()=>{const form=document.querySelector('#tx');if(!form)return;const cash=form.elements.paymentMethod?.value==='CASH';form.querySelectorAll('.account-field').forEach(field=>{const select=field.querySelector('select');if(!select)return;if(cash){select.required=false;const accounts=(state.data.cashAccounts||[]).filter(a=>a['النوع']==='CASH');if(accounts.length<=1){field.hidden=true;select.value=accounts[0]?.['معرف الحساب النقدي']||''}else field.hidden=false}else {field.hidden=false;select.required=['BANK_TRANSFER','CHEQUE'].includes(form.elements.paymentMethod?.value)}});const evidence=form.querySelector('#evidence');if(evidence)evidence.required=false;form.querySelector('#cashConfirm')?.classList.add('hidden')};
+  const sync=()=>{
+    const form=document.querySelector('#tx');if(!form)return;
+    const evidence=form.querySelector('#evidence');if(evidence)evidence.required=false;
+    const method=form.elements.paymentMethod;if(!method){if(['INTERNAL_TRANSFER','ADJUSTMENT','OPENING_BALANCE'].includes(form.elements.type?.value))form.querySelectorAll('select[name="sourceAccountId"],select[name="targetAccountId"]').forEach(select=>{const field=select.closest('label');if(field)field.hidden=false;select.required=true});return;}
+    const cash=method.value==='CASH',bank=['BANK_TRANSFER','CHEQUE'].includes(method.value);
+    const accounts=(state.data.cashAccounts||[]).filter(a=>!cash&&!bank||String(a['النوع']).toUpperCase()===(cash?'CASH':'BANK'));
+    form.querySelectorAll('.account-field').forEach(field=>{
+      const select=field.querySelector('select');if(!select)return;
+      const fingerprint=JSON.stringify([method.value,accounts.map(a=>[a['معرف الحساب النقدي'],a['الاسم']||a['الاسم العربي']||''])]);
+      if(select.dataset.paymentAccounts!==fingerprint){
+        select.dataset.paymentAccounts=fingerprint;const previous=select.value,blank=document.createElement('option');blank.value='';blank.textContent='—';select.replaceChildren(blank);
+        for(const account of accounts){const option=document.createElement('option');option.value=account['معرف الحساب النقدي'];option.textContent=account['الاسم']||account['الاسم العربي']||account['معرف الحساب النقدي'];select.append(option)}
+        select.value=accounts.some(a=>String(a['معرف الحساب النقدي'])===String(previous))?previous:'';
+      }
+      if(cash){select.required=accounts.length>1;field.hidden=accounts.length<=1;if(accounts.length<=1)select.value=accounts[0]?.['معرف الحساب النقدي']||''}
+      else{field.hidden=false;select.required=bank}
+    });
+    form.querySelector('#cashConfirm')?.classList.add('hidden');
+  };
   document.addEventListener('change',()=>queueMicrotask(sync));new MutationObserver(sync).observe(document.querySelector('#app'),{childList:true,subtree:true});sync();
 }
 document.addEventListener('DOMContentLoaded',()=>{installDropdowns_();installEditingControls_();installCashControls_()});
