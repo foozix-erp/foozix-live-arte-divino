@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="ar" dir="rtl">
 <head>
+<script>window.FOOZIX_UI_468=new URLSearchParams(location.search).get('ui')==='468';</script>
 <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#178B7A">
@@ -18,7 +19,7 @@
 
   <script>window.__FOOZIX_LAUNCH__={source:'pwa',session:''};</script>
   <div id="app" class="app-shell" aria-live="polite"></div>
-  <script src="app.js?v=4.6.7" defer></script>
+  <script>document.write('<script src="'+(window.FOOZIX_UI_468?'candidate-4.6.8.js?v=1':'app.js?v=4.6.7')+'" defer><\/script>');</script>
   <script>if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js').then(reg=>reg.update()).catch(()=>{}));</script>
 </body>
 </html>
