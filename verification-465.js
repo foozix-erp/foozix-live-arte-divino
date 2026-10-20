@@ -1,6 +1,6 @@
 // Opt-in admin-only acceptance controls; no credentials are embedded or logged.
 (()=>{
-  const endpoint='https://script.google.com/macros/s/AKfycbx4FOBPmFNzplnXnuKVzw-4Emp0E7fVXTsF25KKwjnxQ0oADWEDA_M4tItZ_F1eK07lYA/exec';
+  const endpoint='https://script.google.com/macros/s/AKfycbxNZyrzST4WkES5pzSKQApYg23PatTOtDjt_VBKtSBLRdkvexjGmfCJdidHlRS8Q94W_g/exec';
   const init=()=>{
     const panel=document.createElement('section');panel.dir='rtl';panel.style.cssText='position:fixed;inset:12px 12px auto 12px;z-index:200000;background:white;border:2px solid #177c6d;border-radius:12px;padding:16px;max-height:75vh;overflow:auto;color:#143e35';
     panel.innerHTML='<h2>اختبار تصحيح معزول — للإدارة فقط</h2><p>يعمل على نسخة مؤقتة، ولا يسجل حركات تجريبية في الشيت الأصلي.</p><button id="acceptanceRun465" type="button">تشغيل الاختبار المعزول</button> <button id="acceptanceStatus465" type="button">عرض نتيجة الاختبار</button><pre id="acceptanceResult465" dir="ltr" style="white-space:pre-wrap"></pre>';
