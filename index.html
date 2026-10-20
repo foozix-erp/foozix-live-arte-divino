@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="ar" dir="rtl">
 <head>
+<script>window.FOOZIX_ACCEPTANCE_466=new URLSearchParams(location.search).get('acceptance')==='466';</script>
 <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#178B7A">
@@ -20,5 +21,6 @@
   <div id="app" class="app-shell" aria-live="polite"></div>
   <script src="app.js?v=4.6.5" defer></script>
   <script>if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js').then(reg=>reg.update()).catch(()=>{}));</script>
+<script>if(window.FOOZIX_ACCEPTANCE_466){const script=document.createElement('script');script.src='verification-465.js?v=466';document.head.append(script)}</script>
 </body>
 </html>
