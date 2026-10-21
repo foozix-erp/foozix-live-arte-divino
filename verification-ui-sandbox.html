@@ -495,7 +495,7 @@ function installDropdowns_(){
   const show=(binding,query='')=>{active=binding;const popupHost=binding.input.closest('dialog')||document.body;if(popup.parentNode!==popupHost)popupHost.append(popup);popup.replaceChildren();highlight=-1;const options=[...binding.select.options].filter(option=>!option.disabled&&dropdownMatches_(option.textContent,query));options.forEach(option=>{const button=document.createElement('button');button.type='button';button.setAttribute('role','option');button.setAttribute('aria-selected',String(option.selected));button.textContent=option.textContent||'—';button.onpointerdown=event=>event.preventDefault();button.onclick=()=>{binding.select.value=option.value;binding.input.value=option.textContent||'';binding.select.dispatchEvent(new Event('change',{bubbles:true}));binding.input.focus();close()};popup.append(button)});if(!options.length){const empty=document.createElement('div');empty.textContent=state.lang==='ar'?'لا توجد نتيجة':'No match';empty.style.padding='10px';popup.append(empty)}popup.hidden=false;binding.input.setAttribute('aria-expanded','true');place()};
   const bindings=new WeakMap();
   const upgrade=()=>document.querySelectorAll('select:not([multiple])').forEach(select=>{
-    let binding=bindings.get(select);if(binding){if(active?.select!==select)binding.input.value=select.selectedOptions[0]?.textContent||'';binding.input.disabled=select.disabled;return}
+    let binding=bindings.get(select);if(binding){if(select.disabled&&active?.select===select)close();if(active?.select!==select)binding.input.value=select.selectedOptions[0]?.textContent||'';if(binding.input.disabled!==select.disabled)binding.input.disabled=select.disabled;return}
     const wrapper=document.createElement('span');wrapper.className='foozix-select';select.before(wrapper);wrapper.append(select);select.tabIndex=-1;
     const input=document.createElement('input');input.type='text';input.className='foozix-combobox';input.autocomplete='off';input.setAttribute('role','combobox');input.setAttribute('aria-autocomplete','list');input.setAttribute('aria-expanded','false');input.setAttribute('aria-controls',popup.id);input.setAttribute('aria-label',select.getAttribute('aria-label')||select.labels?.[0]?.childNodes?.[0]?.textContent?.trim()||select.name||'اختيار');wrapper.append(input);
     binding={select,input};bindings.set(select,binding);input.value=select.selectedOptions[0]?.textContent||'';input.disabled=select.disabled;
@@ -504,7 +504,7 @@ function installDropdowns_(){
   });
   popup.onkeydown=event=>{const buttons=[...popup.querySelectorAll('button')];if(event.key==='Escape'){event.preventDefault();const input=active?.input;input?.focus();close()}else if(['ArrowDown','ArrowUp'].includes(event.key)){event.preventDefault();highlight=(buttons.indexOf(document.activeElement)+(event.key==='ArrowDown'?1:-1)+buttons.length)%buttons.length;buttons[highlight]?.focus()}};
   document.addEventListener('pointerdown',event=>{if(!popup.contains(event.target)&&!event.target.closest('.foozix-select'))close()});document.addEventListener('focusin',event=>{if(active&&!popup.contains(event.target)&&event.target!==active.input)close()});window.addEventListener('resize',place);document.addEventListener('scroll',place,true);
-  let queued=false;new MutationObserver(records=>{if(records.every(r=>popup.contains(r.target)))return;if(!queued){queued=true;queueMicrotask(()=>{queued=false;upgrade()})}}).observe(document.body,{subtree:true,childList:true});upgrade();
+  let queued=false;new MutationObserver(records=>{if(records.every(r=>r.type==='attributes'?!['SELECT','OPTION'].includes(r.target.tagName):popup.contains(r.target)))return;if(!queued){queued=true;queueMicrotask(()=>{queued=false;upgrade()})}}).observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['disabled']});upgrade();
 }
 
 const masterEditLoadingStates_=new WeakMap();
@@ -672,6 +672,14 @@ const extendedEditorsView_=view;
 view=function(){if(state.loading)return '';let html=extendedEditorsView_();const entities={employees:['employee'],assets:['asset'],finance:['cashAccount'],settings:['finishItem','expenseItem'],parties:['agreement']};for(const entity of entities[state.view]||[]){if(!canAction(entityEditModule_(entity),'edit'))continue;const panel=masterEditPicker_(entity,state.data[masterListKey_(entity)]||[]);if(['employees','assets'].includes(state.view)&&html.includes('</form>'))html=html.replace('</form>','</form>'+panel);else html+=panel}return html};
 
 // Final-value edits and changes in cost are intentionally separate operations.
+agreementTable=function(list){
+  if(!list.length)return `<div class="empty">${t('none')}</div>`;
+  const ar=state.lang==='ar',headers=ar?['الطرف / المشروع','قيمة الاتفاق الحالية','المدفوع','المتبقي من الاتفاق','الأعمال المعتمدة','المستحق حاليًا','القيمة الأصلية','التعديلات','الحالة','الكمية المتفق عليها','الكمية المعتمدة','سعر الوحدة']:['Party / project','Current agreement value','Paid','Remaining agreement value','Certified work','Currently due','Original value','Amendments','Status','Agreed quantity','Certified quantity','Unit rate'];
+  return `<div class="table-wrap agreement-balances"><table><thead><tr>${headers.map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>${list.map(x=>{
+    const adjusted=Number(x['القيمة المعدلة']??x['القيمة الأصلية']??0),paid=Number(x['إجمالي المدفوع']||0),remaining=x['المتبقي من الاتفاق']??adjusted-paid;
+    return `<tr><td>${esc(agreementName(x))}</td><td>${money(adjusted)}</td><td>${money(paid)}</td><td>${money(remaining)}</td><td>${money(x['قيمة الأعمال المعتمدة']||0)}</td><td>${money(x['المستحق حاليًا']||0)}</td><td>${money(x['القيمة الأصلية']||0)}</td><td>${money(x['إجمالي التعديلات']||0)}</td><td>${esc(x['الحالة']||'')}</td><td>${esc(x['الكمية المتفق عليها']??'')}</td><td>${esc(x['الكمية المعتمدة']??'')}</td><td>${money(x['سعر الوحدة']||0)}</td></tr>`;
+  }).join('')}</tbody></table></div>`;
+};
 const agreementAmendmentPanelBase_=agreementPanel;
 agreementPanel=function(){
   const ar=state.lang==='ar',html=agreementAmendmentPanelBase_();
@@ -866,4 +874,4 @@ HELP_TOPICS.push(
  {id:'accountingArchive',view:'finance',titleAr:'السنة الحالية وأرشيف الدفاتر وإقفال شهر أو سنة',titleEn:'Current-year books, archive and period closing',keys:'دفتر استاذ يومية تقفيل اقفال سنة شهر سنوات قديمة ارشيف opening ledger archive close year month',stepsAr:['الدفاتر المحاسبية تبدأ افتراضيًا بالسنة الحالية. اختر أي تاريخ من وإلى أو سنة من الأرشيف.','حركات السنوات السابقة لا تُحذف: تظهر ضمن الأرشيف وتُحمل أرصدتها الافتتاحية في الفترة المختارة.','من البنوك والسيولة اختر إقفال شهر أو سنة كاملة واكتب السبب. يمنع الإقفال مع وجود حركات غير مراجعة أو قيد غير متوازن.','فك الإقفال متاح للصلاحيات المخولة فقط وبسبب مسجل.','اطبع التقرير بعد اختياره؛ إعداد الطباعة A4، والبيانات تعكس القيود المرحلة.'],stepsEn:['Accounting books default to the current year. Choose any from/to dates or an archived year.','Prior entries are retained and contribute opening balances to the chosen period.','In Banks & liquidity select month or full-year closing and enter a reason. Unreviewed entries or an unbalanced journal block closing.','Reopening is restricted to authorized roles with an audited reason.','Build and print the selected posted-journal report in A4.']}
 );
 
-})();</script></body></html>
+})();</script></html>
