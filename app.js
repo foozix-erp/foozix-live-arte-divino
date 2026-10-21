@@ -793,10 +793,29 @@ function linkedReturnsPanelRaw_(){
 }
 function linkedReturnsPanel_(){
   const html=linkedReturnsPanelRaw_();if(!state.data.returnOptions)return html;
-  return html.replace('<div class="form-grid">','<div class="form-grid">'+returnSearchControls_(state.data.returnOptions,state.lang==='ar')).replace(/(<select name="originalId" required>)[\s\S]*?(<\/select>)/,'$1<option value=""></option>$2');
+  const ar=state.lang==='ar',group=`<fieldset class="field-wide"><legend>${ar?'رد أموال العميل من عدة دفعات':'Refund customer from multiple receipts'}</legend><label><input type="checkbox" name="groupedRefund">${ar?'رد واحد موزّع على عدة دفعات لنفس العميل والمشروع والعملة وسعر الصرف':'One refund allocated across receipts of the same client, project, currency and FX rate'}</label><button type="button" id="addRefundSource">${ar?'إضافة التحصيل المختار للتوزيع':'Add selected receipt to allocation'}</button><div id="refundAllocationRows"></div><p>${ar?'حدد مبلغ كل دفعة؛ الإجمالي يُحسب تلقائيًا. التصحيح اللاحق للمبلغ يعيد توزيعه بنفس النسب، مع فحص المتبقي لكل أصل.':'Enter each allocation; the total is automatic. Later amount corrections preserve allocation proportions and recheck each source cap.'}</p></fieldset>`;
+  return html.replace('<div class="form-grid">','<div class="form-grid">'+returnSearchControls_(state.data.returnOptions,ar)+group).replace(/(<select name="originalId" required>)[\s\S]*?(<\/select>)/,'$1<option value=""></option>$2');
 }
+function groupedRefundParts_(form){return [...form.querySelectorAll('input[data-refund-source]')].map(x=>({originalId:x.dataset.refundSource,version:Number(x.dataset.version),amount:Number(x.value)}));}
+function syncGroupedRefund_(form){
+  const grouped=form.elements.namedItem('groupedRefund')?.checked;if(!grouped)return false;
+  const parts=groupedRefundParts_(form),amount=form.elements.namedItem('amount'),kind=form.elements.namedItem('kind');kind.value='CUSTOMER_REFUND';amount.value=String(Math.round(parts.reduce((s,x)=>s+x.amount,0)*100)/100);amount.removeAttribute('max');amount.readOnly=true;form.elements.namedItem('originalId').required=false;
+  form.querySelector('button[type="submit"]').disabled=form.dataset.saving==='true'||parts.length<2||parts.some(x=>!Number.isFinite(x.amount)||x.amount<=0);return true;
+}
+document.addEventListener('click',event=>{
+  const add=event.target.closest('#addRefundSource'),remove=event.target.closest('[data-remove-refund]');if(!add&&!remove)return;
+  const form=event.target.closest('form');if(!form)return;const host=form.querySelector('#refundAllocationRows'),output=form.querySelector('output');
+  if(remove){remove.closest('.refund-allocation-row').remove();form.dataset.key='';syncLinkedReturnForm_(form);return;}
+  const source=(state.data.returnOptions||[]).find(x=>String(x.id)===form.elements.namedItem('originalId').value),ar=state.lang==='ar';
+  if(!source||source.type!=='CUSTOMER_RECEIPT'){output.textContent=ar?'اختر تحصيل عميل أصلي أولًا.':'Select an original customer receipt first.';return;}
+  if(groupedRefundParts_(form).some(x=>x.originalId===String(source.id))){output.textContent=ar?'الدفعة مضافة بالفعل.':'Receipt already added.';return;}
+  const first=groupedRefundParts_(form)[0],original=first&&(state.data.returnOptions||[]).find(x=>String(x.id)===first.originalId);
+  if(original&&['projectId','clientId','currency','exchangeRate','designExempt'].some(k=>String(source[k]??'')!==String(original[k]??''))){output.textContent=ar?'اختر دفعات لنفس العميل والمشروع والعملة وسعر الصرف والمعاملة.':'Receipts must share client, project, currency, FX rate and treatment.';return;}
+  host.insertAdjacentHTML('beforeend',`<div class="refund-allocation-row"><label class="field">${esc(source.date)} — ${esc(source.description||source.reference||source.id)} — ${ar?'متاح':'Available'} ${esc(source.remaining)} ${esc(source.currency)}<input type="number" min=".01" step=".01" max="${esc(source.remaining)}" required value="${esc(source.remaining)}" data-refund-source="${esc(source.id)}" data-version="${esc(source.version)}"></label><button type="button" data-remove-refund="${esc(source.id)}">${ar?'إزالة':'Remove'}</button></div>`);
+  form.elements.namedItem('groupedRefund').checked=true;form.dataset.key='';output.textContent='';syncLinkedReturnForm_(form);
+});
 function syncLinkedReturnForm_(form){
-  const e=form.elements,source=(state.data.returnOptions||[]).find(x=>String(x.id)===e.namedItem('originalId').value),kind=e.namedItem('kind');
+  const e=form.elements,groupFirst=e.namedItem('groupedRefund')?.checked&&groupedRefundParts_(form)[0],source=(state.data.returnOptions||[]).find(x=>String(x.id)===String(groupFirst?groupFirst.originalId:e.namedItem('originalId').value)),kind=e.namedItem('kind');
   for(const option of kind.options)option.disabled=source?(source.type==='CUSTOMER_RECEIPT'?option.value!=='CUSTOMER_REFUND':option.value==='CUSTOMER_REFUND'):false;
   if(kind.selectedOptions[0]?.disabled)kind.value=source.type==='CUSTOMER_RECEIPT'?'CUSTOMER_REFUND':'CASH';
   const credit=kind.value==='CREDIT',method=e.namedItem('paymentMethod'),account=e.namedItem('accountId'),cash=method.value==='CASH';
@@ -806,7 +825,11 @@ function syncLinkedReturnForm_(form){
   if(account.dataset.fingerprint!==fingerprint){account.dataset.fingerprint=fingerprint;const old=account.value;account.innerHTML='<option value=""></option>'+accounts.map(x=>`<option value="${esc(x['معرف الحساب النقدي'])}">${esc(x['الاسم'])}</option>`).join('');account.value=accounts.some(x=>String(x['معرف الحساب النقدي'])===old)?old:cash&&accounts.length===1?accounts[0]['معرف الحساب النقدي']:'';account.dispatchEvent(new Event('input',{bubbles:true}));}
   account.closest('label').hidden=credit||(cash&&accounts.length===1);account.required=!credit&&(!cash||accounts.length>1);
   e.namedItem('amount').max=source?String(source.remaining):'';
-  form.querySelector('button').disabled=!source||form.dataset.saving==='true';
+  const grouped=e.namedItem('groupedRefund')?.checked;
+  if(!grouped){e.namedItem('amount').readOnly=false;e.namedItem('originalId').required=true;}
+  for(const input of form.querySelectorAll('input[data-refund-source]'))input.disabled=!grouped;
+  form.querySelector('button[type="submit"]').disabled=!source||form.dataset.saving==='true';
+  syncGroupedRefund_(form);
 }
 const linkedReturnViewBase_=view;
 view=function(){return linkedReturnViewBase_()+(!state.loading&&state.view==='transaction'?`<div id="linkedReturnsWorkspace">${linkedReturnsPanel_()}</div>`:'');};
@@ -816,14 +839,14 @@ document.addEventListener('click',async event=>{
   catch(error){if(host?.isConnected){host.querySelector('output').textContent=error.message;button.disabled=false;}}
 });
 document.addEventListener('change',event=>{const form=event.target.form;if(form?.getAttribute('id')==='linkedReturnForm'){form.dataset.key='';if(event.target.name.startsWith('filter_'))refreshReturnSearch_(form);syncLinkedReturnForm_(form);}});
-document.addEventListener('input',event=>{const form=event.target.form;if(form?.getAttribute('id')==='linkedReturnForm'){form.dataset.key='';if(event.target.name==='filter_query'){refreshReturnSearch_(form);syncLinkedReturnForm_(form);}}});
+document.addEventListener('input',event=>{const form=event.target.form;if(form?.getAttribute('id')==='linkedReturnForm'){form.dataset.key='';if(event.target.name==='filter_query'){refreshReturnSearch_(form);syncLinkedReturnForm_(form);}if(event.target.dataset.refundSource)syncGroupedRefund_(form);}});
 window.addEventListener('submit',async event=>{
   const form=event.target;if(form.getAttribute('id')!=='linkedReturnForm')return;event.preventDefault();event.stopImmediatePropagation();
   if(form.dataset.saving==='true'||!form.reportValidity())return;
-  const payload=obj(form),source=state.data.returnOptions.find(x=>String(x.id)===payload.originalId);if(!source)return;
-  delete payload.returnDocument;payload.amount=Number(payload.amount);payload.version=source.version;payload.idempotencyKey=form.dataset.key||(form.dataset.key=crypto.randomUUID());
+  const payload=obj(form),grouped=form.elements.namedItem('groupedRefund')?.checked,source=state.data.returnOptions.find(x=>String(x.id)===payload.originalId);if(!grouped&&!source)return;
+  delete payload.returnDocument;payload.amount=Number(payload.amount);payload.version=source?.version;payload.idempotencyKey=form.dataset.key||(form.dataset.key=crypto.randomUUID());if(grouped)payload.allocations=groupedRefundParts_(form);
   form.dataset.saving='true';syncLinkedReturnForm_(form);let failure='';
-  try{payload.documentId=await uploadOptionalFile(form,'returnDocument');const response=await api('return.create',payload);if(!response?.ok)throw new Error(msg(response));const fresh=await api('return.options',{});if(!fresh?.ok)throw new Error(msg(fresh));state.data.returnOptions=fresh.data;const host=form.closest('#linkedReturnsWorkspace');if(host?.isConnected){host.innerHTML=linkedReturnsPanel_();host.querySelector('details').open=true;host.querySelector('output').textContent=t('success');}}
+  try{payload.documentId=await uploadOptionalFile(form,'returnDocument');const response=await api(grouped?'return.customerGrouped':'return.create',payload);if(!response?.ok)throw new Error(msg(response));const fresh=await api('return.options',{});if(!fresh?.ok)throw new Error(msg(fresh));state.data.returnOptions=fresh.data;const host=form.closest('#linkedReturnsWorkspace');if(host?.isConnected){host.innerHTML=linkedReturnsPanel_();host.querySelector('details').open=true;host.querySelector('output').textContent=t('success');}}
   catch(error){failure=error.message;}finally{form.dataset.saving='false';if(form.isConnected){syncLinkedReturnForm_(form);if(failure)form.querySelector('output').textContent=failure;}}
 },true);
 
