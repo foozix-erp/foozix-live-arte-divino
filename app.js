@@ -120,8 +120,8 @@ function endActionButton_(button){if(!button)return;actionButtonDepth_=Math.max(
 document.addEventListener('click',event=>{const button=event.target.closest('button');actionButton_=button&&button.closest('#app')&&!button.closest('.nav,.topbar')?button:null},true);
 document.addEventListener('submit',event=>{const button=event.submitter||event.target.querySelector('button[type="submit"],button:not([type])');if(button)actionButton_=button},true);
 const pendingReads_=new Map();
-const api=(action,payload={})=>{
-  const readOnly=/^(app\.bootstrap|view\.load|profile|report\.|accounting\.|finance\.(dashboard|statements)|notification\.list|agreement\.list)/.test(action);
+let api=(action,payload={})=>{
+  const readOnly=/^(app\.(bootstrap|freshness)|view\.load|profile|report\.|accounting\.|finance\.(dashboard|statements)|notification\.list|agreement\.list)/.test(action);
   const request={action,payload,sessionToken:sessionToken_()},key=JSON.stringify(request);
   if(readOnly&&pendingReads_.has(key))return pendingReads_.get(key);
   const busyButton=beginActionButton_();
@@ -944,3 +944,79 @@ reports=function(){const html=duplicateCancellationReportBase_();if(!['SUPER_ADM
 document.addEventListener('input',event=>{const form=event.target.form;if(form?.getAttribute('id')==='duplicateCancellation'&&['id','retainedId'].includes(event.target.name)){form._duplicatePreview=null;form.querySelector('button[type=submit]').disabled=true;}});
 document.addEventListener('click',async event=>{const button=event.target.closest('#previewDuplicateCancellation');if(!button)return;const form=button.form;try{button.disabled=true;const response=await api('transaction.duplicatePreview',{id:form.elements.namedItem('id').value.trim(),retainedId:form.elements.namedItem('retainedId').value.trim()});if(!response?.ok)throw new Error(msg(response));form._duplicatePreview=response.data;form.querySelector('output').textContent=[response.data.project,response.data.date,money(response.data.amount),response.data.account,'المكرر: '+response.data.description,'الأصلية: '+response.data.retainedDescription,'مستند الأصلية: '+response.data.retainedDocument].join(' — ');form.querySelector('button[type=submit]').disabled=response.data.status!=='POSTED';}catch(error){form.querySelector('output').textContent=error.message;}finally{button.disabled=false;}});
 window.addEventListener('submit',async event=>{const form=event.target;if(form.getAttribute('id')!=='duplicateCancellation')return;event.preventDefault();event.stopImmediatePropagation();if(!form._duplicatePreview||form.dataset.saving==='true'||!form.reportValidity())return;const button=form.querySelector('button[type=submit]');form.dataset.saving='true';button.disabled=true;try{const response=await api('transaction.cancelDuplicate',{...form._duplicatePreview,reason:form.elements.namedItem('reason').value,confirmed:form.elements.namedItem('confirmed').checked});if(!response?.ok)throw new Error(msg(response));form.querySelector('output').textContent='تم إلغاء أثر السطر المكرر بقيد عكسي '+response.data.journalId+'؛ الحركة الأصلية لم تتغير.';form._duplicatePreview=null;}catch(error){form.querySelector('output').textContent=error.message;button.disabled=false;}finally{form.dataset.saving='false';}},true);
+
+// Preserve the existing editing controls while separating cash from work charges.
+const financialDetailBase_=detailTable_;
+detailTable_=function(report){
+  const ar=state.lang==='ar',cash=(report.statement||[]).filter(x=>['CUSTOMER_RECEIPT','CUSTOMER_REFUND'].includes(x.type)),work=(report.statement||[]).filter(x=>!['CUSTOMER_RECEIPT','CUSTOMER_REFUND'].includes(x.type));
+  const notes=!!state.reportOptions?.showInternalNotes,editable=canAction('transactions','edit');
+  const payments=cash.length?`<section class="report-receipts"><h2>${ar?'دفعات العملاء والمبالغ المردودة — ليست مصروفات':'Customer receipts and refunds — not expenses'}</h2><div class="report-table"><table><thead><tr>${(ar?['التاريخ','نوع الحركة','البيان','المتحصل','المردود للعميل']:['Date','Movement','Description','Received','Refunded to customer']).map(x=>`<th>${x}</th>`).join('')}${notes?`<th>${ar?'ملاحظات داخلية':'Internal notes'}</th>`:''}${editable?`<th class="no-print">${ar?'التفاصيل':'Details'}</th>`:''}</tr></thead><tbody>${cash.map(x=>`<tr><td>${esc(formatDateValue_(x.transactionDate))}</td><td>${esc(x.type==='CUSTOMER_REFUND'?(ar?'رد مبلغ للعميل':'Customer refund'):(x.design?(ar?'دفعة تصميم':'Design receipt'):(ar?'دفعة من العميل':'Customer receipt')))}</td><td>${esc(x.description||'—')}</td><td>${x.type==='CUSTOMER_RECEIPT'?money(Math.abs(Number(x.receipt||x.amount||0))):'—'}</td><td>${x.type==='CUSTOMER_REFUND'?money(Math.abs(Number(x.receipt||x.amount||0))):'—'}</td>${notes?`<td>${esc(x.notes||'—')}</td>`:''}${editable?`<td class="no-print"><button type="button" class="secondary transaction-correct" data-id="${esc(x.transactionId||'')}">${ar?'فتح التفاصيل / التعديل':'Open details / edit'}</button></td>`:''}</tr>`).join('')}</tbody></table></div></section>`:'';
+  return payments+`<h2>${ar?'تفاصيل الأعمال والمصروفات والمرتجعات':'Work, expenses and purchase returns'}</h2>`+financialDetailBase_({...report,statement:work});
+};
+
+const CLIENT_BUILD_='4.7.8';
+let financialRevision_=null,financialRefreshBusy_=false,financialStale_=false,financialVersionMismatch_=false,financialReadAt_='';
+const financialReadViews_=new Set(['dashboard','projects','finance','reports','parties','tasks','clients','employees','loans','assets','audit']);
+const financialDirtyForms_=new WeakSet();
+document.addEventListener('input',event=>{if(event.target.form)financialDirtyForms_.add(event.target.form);});
+function financialUnsaved_(){return [...document.querySelectorAll('form')].some(f=>financialDirtyForms_.has(f));}
+function financialMarkStale_(){
+  financialStale_=true;state.loadedAt={};
+  const existing=document.querySelector('#financialFreshness');if(existing)existing.outerHTML=financialFreshnessHtml_();
+}
+function financialFreshnessHtml_(){
+  const ar=state.lang==='ar',message=financialVersionMismatch_?(ar?'يوجد إصدار أحدث. احفظ أي نموذج مفتوح ثم حدّث البرنامج قبل الاعتماد على الأرقام.':'A newer version is available. Save open forms, then reload before relying on figures.'):(financialStale_?(ar?'البيانات المعروضة قديمة؛ يوجد تحديث أحدث. حدّث قبل المراجعة أو الطباعة.':'Displayed data is stale. Refresh before review or printing.'):(ar?'آخر قراءة للبيانات: ':'Data last read: ')+(financialReadAt_?new Date(financialReadAt_).toLocaleString(ar?'ar-EG':'en-GB'):'—'));
+  return `<aside id="financialFreshness" class="panel no-print" role="status"><span>${esc(message)}</span> <button type="button" id="refreshFinancialData" class="secondary">${ar?'تحديث البيانات':'Refresh data'}</button></aside>`;
+}
+const financialViewBase_=view;
+view=function(){const html=financialViewBase_();return state.profile&&financialReadViews_.has(state.view)?financialFreshnessHtml_()+html:html;};
+async function financialReadRevision_(){
+  const response=await financialApiBase_('app.freshness',{});if(!response?.ok)throw new Error(msg(response));
+  financialVersionMismatch_=response.data.version!==CLIENT_BUILD_;return response.data;
+}
+const financialApiBase_=api;
+const financialMutation_=action=>/^(transaction\.(create|createAndSubmit|submit|post|correct|reclassify|cancelDuplicate)|return\.(create|customerGrouped)|master\.(create|update)|approval\.decide|agreement\.(create|amend|certify)|employee\.change|loan\.(create|repay|edit)|payroll\.(saveDetail|submit|lock|ensure)|markup\.(allocate|usageSave|usageBatchSave|usageDecide)|project\.closing\.request|period\.|bank\.|backup\.restore)/.test(action);
+api=async function(action,payload){const response=await financialApiBase_(action,payload);if(response?.ok&&financialMutation_(action)){financialMarkStale_();try{localStorage.setItem('foozix.dataChanged',String(Date.now()));}catch(error){}}return response;};
+const financialLoadBase_=load;
+load=async function(){
+  if(!financialReadViews_.has(state.view))return financialLoadBase_();
+  const viewAtStart=state.view,before=await financialReadRevision_();
+  await financialLoadBase_();
+  if(viewAtStart==='dashboard'&&canAction('finance','view'))await loadLeadershipProjectSummary_();
+  const after=await financialReadRevision_();
+  if(state.view!==viewAtStart)return;
+  financialRevision_=after.revision;financialReadAt_=after.readAt;financialStale_=before.revision!==after.revision||financialVersionMismatch_;
+};
+const financialOpenBase_=openView;
+openView=async function(next){if(next!==state.view&&financialReadViews_.has(next))state.loadedAt[next]=0;return financialOpenBase_(next);};
+async function refreshFinancialData_(){
+  if(financialRefreshBusy_||state.loading||!state.profile||!financialReadViews_.has(state.view)||document.visibilityState==='hidden')return;
+  financialRefreshBusy_=true;
+  try{
+    const current=await financialReadRevision_();
+    if(financialVersionMismatch_){financialMarkStale_();return;}
+    if(financialRevision_===null){financialRevision_=current.revision;financialReadAt_=current.readAt;financialMarkStale_();}
+    if(current.revision!==financialRevision_)financialMarkStale_();
+    if(!financialStale_)return;
+    if(financialUnsaved_())return;
+    // A report must be rebuilt explicitly; never silently retain old printed totals.
+    for(const key of ['projectReport','accountingReport','financialStatements','vendorStatement','periodReport'])delete state.data[key];
+    await load();render();
+  }catch(error){financialMarkStale_();}finally{financialRefreshBusy_=false;}
+}
+document.addEventListener('click',event=>{
+  if(!event.target.closest('#refreshFinancialData'))return;
+  if(financialUnsaved_()){const banner=document.querySelector('#financialFreshness span');if(banner)banner.textContent=state.lang==='ar'?'احفظ أو أغلق النموذج المعدل أولًا؛ لن يتم مسح مدخلاتك تلقائيًا.':'Save or close the edited form first; your input will not be discarded.';return;}
+  if(financialVersionMismatch_){location.reload();return;}
+  financialMarkStale_();refreshFinancialData_();
+});
+window.addEventListener('storage',event=>{if(event.key==='foozix.dataChanged'){financialMarkStale_();refreshFinancialData_();}});
+window.addEventListener('focus',()=>refreshFinancialData_());
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState!=='hidden')refreshFinancialData_();});
+setInterval(()=>refreshFinancialData_(),30000);
+const financialBootstrapBase_=applyBootstrap_;
+applyBootstrap_=function(data){financialBootstrapBase_(data);financialMarkStale_();refreshFinancialData_();};
+const financialPrintBase_=printPrepared_;
+printPrepared_=async function(){
+  try{const current=await financialReadRevision_();if(financialRevision_===null||current.revision!==financialRevision_||financialVersionMismatch_||financialStale_){financialMarkStale_();throw new Error(state.lang==='ar'?'تغيرت البيانات أو الإصدار. حدّث البيانات وأعد إعداد التقرير قبل الطباعة.':'Data or version changed. Refresh and rebuild the report before printing.');}financialPrintBase_();}catch(error){fail(error);}
+};
