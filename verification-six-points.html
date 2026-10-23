@@ -1,1 +1,14 @@
-<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><title>اكتمل اختبار الإصدار</title><h1>اكتمل اختبار الإصدار 4.7.6</h1><p>نجح 30 فحصًا على نسخة بيانات معزولة، وتأكد عدم تغير جداول الإنتاج أثناء الاختبار. نُقلت نسخة الاختبار إلى سلة المهملات. انتهى رابط الاختبار المؤقت.</p><a href="./">فتح البرنامج المعتمد</a></html>
+<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>FOOZIX — اختبار معزول</title><style>body{font:17px system-ui;background:#f3f8f7;color:#174b43;max-width:900px;margin:40px auto;padding:20px}button{font:inherit;padding:12px;border:1px solid #178b7a;background:white;color:#176b5f;border-radius:8px}pre{direction:ltr;text-align:left;white-space:pre-wrap;overflow-wrap:anywhere;background:white;padding:20px;border-radius:12px}</style><h1>اختبار الست نقاط — نسخة معزولة فقط</h1><p>ينشئ نسخة اختبار مؤقتة، ويجري عليها الاختبارات، ثم يقارن بصمات بيانات الإنتاج ويحذف نسخة الاختبار إلى سلة المهملات. لا يسجل حركات مالية تجريبية في ملف الإنتاج. متاح للمالك التقني فقط.</p><button id="run">تشغيل الاختبار المعزول</button> <button id="status">قراءة نتيجة المحاولة</button><p id="notice" role="status"></p><pre id="result"></pre><script>
+const TEST_RUNTIME='https://script.google.com/macros/s/AKfycbxfi0R3GSK70bfKm-Ie7Mc1lThnrmGBUI-H2JE-_G1wghkI_te9eWMovSqIWbZZayhqlA/exec';
+const notice=document.querySelector('#notice'),result=document.querySelector('#result');
+async function request(action){
+  const token=localStorage.getItem('foozix.session');if(!token)throw new Error('سجّل الدخول أولًا في رابط البرنامج المعتمد، ثم ارجع إلى صفحة الاختبار.');
+  const response=await fetch(TEST_RUNTIME,{method:'POST',headers:{'Content-Type':'text/plain;charset=UTF-8'},credentials:'omit',redirect:'follow',cache:'no-store',body:JSON.stringify({action,payload:{},sessionToken:token})});
+  if(!response.ok)throw new Error('HTTP '+response.status);const data=await response.json();if(!data.ok)throw new Error(data.messageAr||data.code);return data.data;
+}
+async function perform(action){const button=document.querySelector('#run');button.disabled=true;notice.textContent=action==='system.acceptanceSix'?'جاري الاختبار على النسخة المؤقتة؛ لا تغلق الصفحة.':'جاري قراءة النتيجة…';
+  try{const data=await request(action);result.textContent=JSON.stringify(data,null,2);notice.textContent=data.status==='RUNNING'?'الاختبار مستمر. يمكن قراءة نتيجته دون بدء اختبار آخر.':data.result?.ok?'نجح الاختبار المعزول؛ راجع نتيجة ثبات بيانات الإنتاج أدناه.':'ظهرت نتيجة الاختبار أدناه؛ لا تعتبر النسخة معتمدة قبل مراجعتها.';}
+  catch(error){notice.textContent=error.message;}finally{button.disabled=false;}
+}
+document.querySelector('#run').onclick=()=>perform('system.acceptanceSix');document.querySelector('#status').onclick=()=>perform('system.acceptanceSix.status');
+</script></html>
