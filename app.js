@@ -883,8 +883,13 @@ window.addEventListener('submit',async event=>{
 },true);
 
 function returnSearchControls_(rows,ar){
-  const select=(key,label)=>{const values=new Map();rows.forEach(x=>{if(x[key+'Id'])values.set(String(x[key+'Id']),x[key+'Name']||x[key+'Id']);});return `<label class="field">${label}<select name="filter_${key}"><option value=""></option>${[...values].sort((a,b)=>String(a[1]).localeCompare(String(b[1]))).map(([id,name])=>`<option value="${esc(id)}">${esc(name)}</option>`).join('')}</select></label>`;};
-  return `<fieldset class="field-wide"><legend>${ar?'تضييق البحث عن الحركة الأصلية':'Find the original transaction'}</legend><div class="form-grid"><label class="field">${ar?'نوع العملية':'Operation'}<select name="filter_type"><option value="">${ar?'اختر النوع':'Choose type'}</option><option value="PURCHASE">${ar?'مرتجع مشتريات':'Purchase return'}</option><option value="CUSTOMER">${ar?'رد أموال للعميل':'Customer refund'}</option></select></label>${select('client',ar?'العميل':'Client')}${select('project',ar?'المشروع':'Project')}${select('party',ar?'المورد / المقاول':'Supplier / contractor')}${select('item',ar?'البند':'Item')}<label class="field">${ar?'من تاريخ':'From'}<input type="date" name="filter_from"></label><label class="field">${ar?'إلى تاريخ':'To'}<input type="date" name="filter_to"></label><label class="field field-wide">${ar?'بحث بالوصف أو المرجع أو المبلغ':'Description, reference or amount'}<input name="filter_query" type="search"></label></div><p class="return-search-count" role="status"></p></fieldset>`;
+  const select=(key,label)=>`<label class="field">${label}<select name="filter_${key}"><option value=""></option></select></label>`;
+  return `<fieldset class="field-wide"><legend>${ar?'تضييق البحث عن الحركة الأصلية':'Find the original transaction'}</legend><div class="form-grid"><label class="field">${ar?'نوع العملية':'Operation'}<select name="filter_type"><option value="">${ar?'اختر النوع':'Choose type'}</option><option value="PURCHASE">${ar?'مرتجع مشتريات':'Purchase return'}</option><option value="CUSTOMER">${ar?'رد أموال للعميل':'Customer refund'}</option></select></label>${select('project',ar?'المشروع أولًا':'Project first')}${select('client',ar?'العميل «يتحدد تلقائيًا»':'Client (automatic)')}${select('item',ar?'البند':'Item')}${select('party',ar?'المورد / المقاول المرتبط':'Related supplier / contractor')}<label class="field">${ar?'من تاريخ':'From'}<input type="date" name="filter_from"></label><label class="field">${ar?'إلى تاريخ':'To'}<input type="date" name="filter_to"></label><label class="field field-wide">${ar?'بحث بالوصف أو المرجع أو المبلغ':'Description, reference or amount'}<input name="filter_query" type="search"></label></div><p class="return-search-count" role="status"></p></fieldset>`;
+}
+function syncReturnFilters_(form,changed=''){
+  const all=(state.data.returnOptions||[]).filter(x=>Number(x.remaining)>.005),type=form.elements.namedItem('filter_type')?.value||'',matchesType=x=>!type||(type==='CUSTOMER'?x.type==='CUSTOMER_RECEIPT':x.type!=='CUSTOMER_RECEIPT'),rows=all.filter(matchesType);
+  const rebuild=(key,candidates,automatic=false)=>{const select=form.elements.namedItem('filter_'+key),old=select.value,values=new Map();candidates.forEach(x=>{const id=x[key+'Id'];if(id)values.set(String(id),x[key+'Name']||id)});select.innerHTML='<option value=""></option>'+[...values].sort((a,b)=>String(a[1]).localeCompare(String(b[1]))).map(([id,name])=>`<option value="${esc(id)}">${esc(name)}</option>`).join('');select.value=values.has(old)?old:automatic&&values.size===1?[...values.keys()][0]:'';select.disabled=automatic&&values.size===1;return select.value};
+  const project=rebuild('project',rows),projectRows=rows.filter(x=>!project||String(x.projectId)===project),client=rebuild('client',projectRows,true),clientRows=projectRows.filter(x=>!client||String(x.clientId)===client),item=rebuild('item',clientRows),itemRows=clientRows.filter(x=>!item||String(x.itemId)===item);rebuild('party',itemRows);
 }
 function returnSearchRows_(rows,filters){
   const normalize=s=>String(s||'').normalize('NFKD').replace(/[\u064b-\u065f\u0670]/g,'').replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/[٠-٩]/g,c=>String('٠١٢٣٤٥٦٧٨٩'.indexOf(c))).toLowerCase();
@@ -905,7 +910,7 @@ function linkedReturnsPanelRaw_(){
 function linkedReturnsPanel_(){
   const html=linkedReturnsPanelRaw_();if(!state.data.returnOptions)return html;
   const ar=state.lang==='ar',group=`<fieldset class="field-wide"><legend>${ar?'رد أموال العميل من عدة دفعات':'Refund customer from multiple receipts'}</legend><label><input type="checkbox" name="groupedRefund">${ar?'رد واحد موزّع على عدة دفعات لنفس العميل والمشروع والعملة وسعر الصرف':'One refund allocated across receipts of the same client, project, currency and FX rate'}</label><button type="button" id="addRefundSource">${ar?'إضافة التحصيل المختار للتوزيع':'Add selected receipt to allocation'}</button><div id="refundAllocationRows"></div><p>${ar?'حدد مبلغ كل دفعة؛ الإجمالي يُحسب تلقائيًا. التصحيح اللاحق للمبلغ يعيد توزيعه بنفس النسب، مع فحص المتبقي لكل أصل.':'Enter each allocation; the total is automatic. Later amount corrections preserve allocation proportions and recheck each source cap.'}</p></fieldset>`;
-  return html.replace('<div class="form-grid">','<div class="form-grid">'+returnSearchControls_(state.data.returnOptions,ar)+group).replace(/(<select name="originalId" required>)[\s\S]*?(<\/select>)/,'$1<option value=""></option>$2');
+  const result=html.replace('<div class="form-grid">','<div class="form-grid">'+returnSearchControls_(state.data.returnOptions,ar)+group).replace(/(<select name="originalId" required>)[\s\S]*?(<\/select>)/,'$1<option value=""></option>$2');setTimeout(()=>{const form=document.querySelector('#linkedReturnForm');if(form)syncReturnFilters_(form)},0);return result;
 }
 function groupedRefundParts_(form){return [...form.querySelectorAll('input[data-refund-source]')].map(x=>({originalId:x.dataset.refundSource,version:Number(x.dataset.version),amount:Number(x.value)}));}
 function syncGroupedRefund_(form){
@@ -949,7 +954,7 @@ document.addEventListener('click',async event=>{
   try{const response=await api('return.options',{});if(!response?.ok)throw new Error(msg(response));state.data.returnOptions=response.data;if(host?.isConnected)host.innerHTML=linkedReturnsPanel_();}
   catch(error){if(host?.isConnected){host.querySelector('output').textContent=error.message;button.disabled=false;}}
 });
-document.addEventListener('change',event=>{const form=event.target.form;if(form?.getAttribute('id')==='linkedReturnForm'){form.dataset.key='';if(event.target.name.startsWith('filter_'))refreshReturnSearch_(form);syncLinkedReturnForm_(form);}});
+document.addEventListener('change',event=>{const form=event.target.form;if(form?.getAttribute('id')==='linkedReturnForm'){form.dataset.key='';if(event.target.name.startsWith('filter_')){syncReturnFilters_(form,event.target.name);refreshReturnSearch_(form)}syncLinkedReturnForm_(form);}});
 document.addEventListener('input',event=>{const form=event.target.form;if(form?.getAttribute('id')==='linkedReturnForm'){form.dataset.key='';if(event.target.name==='filter_query'){refreshReturnSearch_(form);syncLinkedReturnForm_(form);}if(event.target.dataset.refundSource)syncGroupedRefund_(form);}});
 window.addEventListener('submit',async event=>{
   const form=event.target;if(form.getAttribute('id')!=='linkedReturnForm')return;event.preventDefault();event.stopImmediatePropagation();
@@ -998,6 +1003,7 @@ document.addEventListener('click',async event=>{const button=event.target.closes
 window.addEventListener('submit',async event=>{const form=event.target;if(form.getAttribute('id')!=='duplicateCancellation')return;event.preventDefault();event.stopImmediatePropagation();if(!form._duplicatePreview||form.dataset.saving==='true'||!form.reportValidity())return;const button=form.querySelector('button[type=submit]');form.dataset.saving='true';button.disabled=true;try{const response=await api('transaction.cancelDuplicate',{...form._duplicatePreview,reason:form.elements.namedItem('reason').value,confirmed:form.elements.namedItem('confirmed').checked});if(!response?.ok)throw new Error(msg(response));form.querySelector('output').textContent='تم إلغاء أثر السطر المكرر بقيد عكسي '+response.data.journalId+'؛ الحركة الأصلية لم تتغير.';form._duplicatePreview=null;}catch(error){form.querySelector('output').textContent=error.message;button.disabled=false;}finally{form.dataset.saving='false';}},true);
 
 // Preserve the existing editing controls while separating cash from work charges.
+// Preserve the existing editing controls while separating cash from work charges.
 const financialDetailBase_=detailTable_;
 detailTable_=function(report){
   const ar=state.lang==='ar',cash=(report.statement||[]).filter(x=>['CUSTOMER_RECEIPT','CUSTOMER_REFUND'].includes(x.type)),work=(report.statement||[]).filter(x=>!['CUSTOMER_RECEIPT','CUSTOMER_REFUND'].includes(x.type));
@@ -1006,7 +1012,7 @@ detailTable_=function(report){
   return payments+`<h2>${ar?'تفاصيل الأعمال والمصروفات والمرتجعات':'Work, expenses and purchase returns'}</h2>`+financialDetailBase_({...report,statement:work});
 };
 
-const CLIENT_BUILD_='4.7.19';
+const CLIENT_BUILD_='4.7.20';
 let financialRevision_=null,financialRefreshBusy_=false,financialStale_=false,financialVersionMismatch_=false,financialRefreshFailed_=false,financialReadAt_='',financialAutoRefreshTimer_=0;
 const financialReadViews_=new Set(['dashboard','projects','finance','reports','parties','tasks','clients','employees','loans','assets','audit']);
 const financialDirtyForms_=new WeakSet();
@@ -1076,8 +1082,6 @@ const financialPrintBase_=printPrepared_;
 printPrepared_=async function(){
   try{const current=await financialReadRevision_();if(financialRevision_===null||current.revision!==financialRevision_||financialVersionMismatch_||financialStale_){financialMarkStale_();throw new Error(state.lang==='ar'?'تغيرت البيانات أو الإصدار. حدّث البيانات وأعد إعداد التقرير قبل الطباعة.':'Data or version changed. Refresh and rebuild the report before printing.');}financialPrintBase_();}catch(error){fail(error);}
 };
-
-
 const safeWithdrawalFinanceBase_=finance;
 finance=function(){
   const f=state.data.financeDashboard,ar=state.lang==='ar',baseHtml=safeWithdrawalFinanceBase_();
