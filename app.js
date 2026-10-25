@@ -1004,6 +1004,7 @@ window.addEventListener('submit',async event=>{const form=event.target;if(form.g
 
 // Preserve the existing editing controls while separating cash from work charges.
 // Preserve the existing editing controls while separating cash from work charges.
+// Preserve the existing editing controls while separating cash from work charges.
 const financialDetailBase_=detailTable_;
 detailTable_=function(report){
   const ar=state.lang==='ar',cash=(report.statement||[]).filter(x=>['CUSTOMER_RECEIPT','CUSTOMER_REFUND'].includes(x.type)),work=(report.statement||[]).filter(x=>!['CUSTOMER_RECEIPT','CUSTOMER_REFUND'].includes(x.type));
@@ -1066,6 +1067,37 @@ async function refreshFinancialData_(){
     await load();financialRefreshFailed_=false;render();
   }catch(error){financialRefreshFailed_=true;financialMarkStale_();}finally{financialRefreshBusy_=false;}
 }
+let pullRefreshStartY_=0,pullRefreshDistance_=0,pullRefreshTracking_=false,pullRefreshRunning_=false;
+function pullRefreshIndicator_(){
+  let indicator=document.querySelector('#pullRefreshIndicator');
+  if(!indicator){indicator=document.createElement('div');indicator.id='pullRefreshIndicator';indicator.className='pull-refresh-indicator no-print';indicator.setAttribute('role','status');indicator.textContent=state.lang==='ar'?'اسحب للتحديث':'Pull to refresh';document.body.append(indicator);}
+  return indicator;
+}
+function pullRefreshReset_(delay=0){
+  const finish=()=>{const indicator=document.querySelector('#pullRefreshIndicator');if(indicator){indicator.classList.remove('visible','ready','refreshing');indicator.style.removeProperty('--pull-distance');}pullRefreshDistance_=0;pullRefreshTracking_=false;};
+  delay?setTimeout(finish,delay):finish();
+}
+async function pullRefreshCurrentView_(){
+  if(pullRefreshRunning_||financialRefreshBusy_||state.loading||!state.profile)return false;
+  const indicator=pullRefreshIndicator_(),ar=state.lang==='ar';
+  if(financialUnsaved_()){indicator.textContent=ar?'احفظ أو أغلق التعديل أولًا':'Save or close the edit first';indicator.classList.add('visible');pullRefreshReset_(1800);return false;}
+  pullRefreshRunning_=true;indicator.textContent=ar?'جارٍ تحديث الصفحة الحالية…':'Refreshing this page…';indicator.classList.add('visible','refreshing');
+  try{financialMarkStale_();await refreshFinancialData_();indicator.textContent=financialRefreshFailed_?(ar?'تعذر التحديث؛ حاول مرة أخرى':'Refresh failed; try again'):(ar?'تم تحديث الصفحة':'Page refreshed');return !financialRefreshFailed_;}
+  finally{pullRefreshRunning_=false;pullRefreshReset_(financialRefreshFailed_?1800:700);}
+}
+document.addEventListener('touchstart',event=>{
+  if(event.touches.length!==1||window.scrollY>0||state.loading||pullRefreshRunning_||event.target.closest('dialog,.help-center,.sidebar'))return;
+  pullRefreshStartY_=event.touches[0].clientY;pullRefreshDistance_=0;pullRefreshTracking_=true;
+},{passive:true});
+document.addEventListener('touchmove',event=>{
+  if(!pullRefreshTracking_||event.touches.length!==1)return;
+  const distance=event.touches[0].clientY-pullRefreshStartY_;
+  if(distance<=0){pullRefreshReset_();return;}
+  pullRefreshDistance_=Math.min(110,distance*.55);if(distance>8)event.preventDefault();
+  const indicator=pullRefreshIndicator_();indicator.textContent=pullRefreshDistance_>=68?(state.lang==='ar'?'اترك للتحديث':'Release to refresh'):(state.lang==='ar'?'اسحب للتحديث':'Pull to refresh');indicator.style.setProperty('--pull-distance',pullRefreshDistance_+'px');indicator.classList.add('visible');indicator.classList.toggle('ready',pullRefreshDistance_>=68);
+},{passive:false});
+document.addEventListener('touchend',()=>{if(!pullRefreshTracking_)return;const refresh=pullRefreshDistance_>=68;pullRefreshTracking_=false;if(refresh)pullRefreshCurrentView_();else pullRefreshReset_();},{passive:true});
+document.addEventListener('touchcancel',()=>pullRefreshReset_(),{passive:true});
 document.addEventListener('click',event=>{
   if(!event.target.closest('#refreshFinancialData'))return;
   if(financialUnsaved_()){const banner=document.querySelector('#financialFreshness span');if(banner)banner.textContent=state.lang==='ar'?'احفظ أو أغلق النموذج المعدل أولًا؛ لن يتم مسح مدخلاتك تلقائيًا.':'Save or close the edited form first; your input will not be discarded.';return;}
