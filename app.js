@@ -1005,6 +1005,7 @@ window.addEventListener('submit',async event=>{const form=event.target;if(form.g
 // Preserve the existing editing controls while separating cash from work charges.
 // Preserve the existing editing controls while separating cash from work charges.
 // Preserve the existing editing controls while separating cash from work charges.
+// Preserve the existing editing controls while separating cash from work charges.
 const financialDetailBase_=detailTable_;
 detailTable_=function(report){
   const ar=state.lang==='ar',cash=(report.statement||[]).filter(x=>['CUSTOMER_RECEIPT','CUSTOMER_REFUND'].includes(x.type)),work=(report.statement||[]).filter(x=>!['CUSTOMER_RECEIPT','CUSTOMER_REFUND'].includes(x.type));
@@ -1098,6 +1099,19 @@ document.addEventListener('touchmove',event=>{
 },{passive:false});
 document.addEventListener('touchend',()=>{if(!pullRefreshTracking_)return;const refresh=pullRefreshDistance_>=68;pullRefreshTracking_=false;if(refresh)pullRefreshCurrentView_();else pullRefreshReset_();},{passive:true});
 document.addEventListener('touchcancel',()=>pullRefreshReset_(),{passive:true});
+document.addEventListener('pointerdown',event=>{
+  if(event.pointerType==='touch'||event.button!==0||window.scrollY>0||state.loading||pullRefreshRunning_||event.target.closest('input,textarea,select,button,a,[contenteditable],dialog,.help-center,.sidebar'))return;
+  pullRefreshStartY_=event.clientY;pullRefreshDistance_=0;pullRefreshTracking_=true;
+},{passive:true});
+document.addEventListener('pointermove',event=>{
+  if(!pullRefreshTracking_||event.pointerType==='touch'||(event.buttons&1)!==1)return;
+  const distance=event.clientY-pullRefreshStartY_;
+  if(distance<=0){pullRefreshReset_();return;}
+  pullRefreshDistance_=Math.min(110,distance*.55);if(distance>8)event.preventDefault();
+  const indicator=pullRefreshIndicator_();indicator.textContent=pullRefreshDistance_>=68?(state.lang==='ar'?'اترك للتحديث':'Release to refresh'):(state.lang==='ar'?'اسحب للتحديث':'Pull to refresh');indicator.style.setProperty('--pull-distance',pullRefreshDistance_+'px');indicator.classList.add('visible');indicator.classList.toggle('ready',pullRefreshDistance_>=68);
+},{passive:false});
+document.addEventListener('pointerup',event=>{if(!pullRefreshTracking_||event.pointerType==='touch')return;const refresh=pullRefreshDistance_>=68;pullRefreshTracking_=false;if(refresh)pullRefreshCurrentView_();else pullRefreshReset_();},{passive:true});
+document.addEventListener('pointercancel',event=>{if(event.pointerType!=='touch')pullRefreshReset_();},{passive:true});
 document.addEventListener('click',event=>{
   if(!event.target.closest('#refreshFinancialData'))return;
   if(financialUnsaved_()){const banner=document.querySelector('#financialFreshness span');if(banner)banner.textContent=state.lang==='ar'?'احفظ أو أغلق النموذج المعدل أولًا؛ لن يتم مسح مدخلاتك تلقائيًا.':'Save or close the edited form first; your input will not be discarded.';return;}
