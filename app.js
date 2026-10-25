@@ -1000,19 +1000,20 @@ detailTable_=function(report){
   return payments+`<h2>${ar?'تفاصيل الأعمال والمصروفات والمرتجعات':'Work, expenses and purchase returns'}</h2>`+financialDetailBase_({...report,statement:work});
 };
 
-const CLIENT_BUILD_='4.7.16';
-let financialRevision_=null,financialRefreshBusy_=false,financialStale_=false,financialVersionMismatch_=false,financialReadAt_='',financialAutoRefreshTimer_=0;
+const CLIENT_BUILD_='4.7.17';
+let financialRevision_=null,financialRefreshBusy_=false,financialStale_=false,financialVersionMismatch_=false,financialRefreshFailed_=false,financialReadAt_='',financialAutoRefreshTimer_=0;
 const financialReadViews_=new Set(['dashboard','projects','finance','reports','parties','tasks','clients','employees','loans','assets','audit']);
 const financialDirtyForms_=new WeakSet();
 document.addEventListener('input',event=>{if(event.target.form)financialDirtyForms_.add(event.target.form);});
 function financialUnsaved_(){return [...document.querySelectorAll('form')].some(f=>financialDirtyForms_.has(f));}
 function financialMarkStale_(){
   financialStale_=true;state.loadedAt={};
-  const html=financialFreshnessHtml_(),existing=document.querySelector('#financialFreshness');if(existing)existing.outerHTML=html;else (document.querySelector('.content')||document.querySelector('main'))?.insertAdjacentHTML('afterbegin',html);
+  const html=financialFreshnessHtml_(),existing=document.querySelector('#financialFreshness');if(existing){if(html)existing.outerHTML=html;else existing.remove()}else if(html)(document.querySelector('.content')||document.querySelector('main'))?.insertAdjacentHTML('afterbegin',html);
 }
 function financialFreshnessHtml_(){
-  if(!financialVersionMismatch_&&!financialStale_)return '';
-  const ar=state.lang==='ar',message=financialVersionMismatch_?(ar?'يوجد إصدار أحدث وسيُطبّق تلقائيًا بعد حفظ النموذج المفتوح.':'A newer version will be applied automatically after the open form is saved.'):(ar?'جارٍ تحديث البيانات المعروضة تلقائيًا…':'Refreshing displayed data automatically…');
+  const unsaved=financialUnsaved_();
+  if((!financialVersionMismatch_&&!financialRefreshFailed_&&!unsaved)||(!financialVersionMismatch_&&!financialStale_))return '';
+  const ar=state.lang==='ar',message=financialVersionMismatch_?(ar?'يوجد إصدار أحدث وسيُطبّق تلقائيًا بعد حفظ النموذج المفتوح.':'A newer version will be applied automatically after the open form is saved.'):(financialRefreshFailed_?(ar?'تعذر التحديث التلقائي. اضغط لتحديث الصفحة الحالية فقط.':'Automatic refresh failed. Refresh the current page only.'):(ar?'احفظ النموذج المفتوح ليظهر التحديث تلقائيًا.':'Save the open form to apply the update automatically.'));
   return `<aside id="financialFreshness" class="panel no-print" role="status"><span>${esc(message)}</span> <button type="button" id="refreshFinancialData" class="secondary">${ar?'تحديث البيانات':'Refresh data'}</button></aside>`;
 }
 const financialViewBase_=view;
@@ -1036,7 +1037,8 @@ load=async function(){
   financialRevision_=after.revision;financialReadAt_=after.readAt;financialStale_=financialVersionMismatch_;
 };
 const financialOpenBase_=openView;
-openView=async function(next){const cached=Date.now()-Number(state.loadedAt[next]||0)<60000,result=await financialOpenBase_(next);if(cached&&financialReadViews_.has(next))financialQueueRefresh_(0);return result;};
+function financialSavedView_(){try{const saved=localStorage.getItem('foozix.view');return financialReadViews_.has(saved)||['transaction','settings'].includes(saved)?saved:'dashboard'}catch(error){return 'dashboard'}}
+openView=async function(next){try{localStorage.setItem('foozix.view',next)}catch(error){}const cached=Date.now()-Number(state.loadedAt[next]||0)<60000,result=await financialOpenBase_(next);if(cached&&financialReadViews_.has(next))financialQueueRefresh_(0);return result;};
 async function refreshFinancialData_(){
   if(financialRefreshBusy_||state.loading||!state.profile||!financialReadViews_.has(state.view)||document.visibilityState==='hidden')return;
   financialRefreshBusy_=true;
@@ -1049,8 +1051,8 @@ async function refreshFinancialData_(){
     if(financialUnsaved_())return;
     // A report must be rebuilt explicitly; never silently retain old printed totals.
     for(const key of ['projectReport','accountingReport','financialStatements','vendorStatement','periodReport'])delete state.data[key];
-    await load();render();
-  }catch(error){financialMarkStale_();}finally{financialRefreshBusy_=false;}
+    await load();financialRefreshFailed_=false;render();
+  }catch(error){financialRefreshFailed_=true;financialMarkStale_();}finally{financialRefreshBusy_=false;}
 }
 document.addEventListener('click',event=>{
   if(!event.target.closest('#refreshFinancialData'))return;
@@ -1063,7 +1065,7 @@ window.addEventListener('focus',()=>refreshFinancialData_());
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState!=='hidden')refreshFinancialData_();});
 setInterval(()=>refreshFinancialData_(),10000);
 const financialBootstrapBase_=applyBootstrap_;
-applyBootstrap_=function(data){financialBootstrapBase_(data);financialMarkStale_();refreshFinancialData_();};
+applyBootstrap_=function(data){state.view=financialSavedView_();financialBootstrapBase_(data);financialMarkStale_();refreshFinancialData_();};
 const financialPrintBase_=printPrepared_;
 printPrepared_=async function(){
   try{const current=await financialReadRevision_();if(financialRevision_===null||current.revision!==financialRevision_||financialVersionMismatch_||financialStale_){financialMarkStale_();throw new Error(state.lang==='ar'?'تغيرت البيانات أو الإصدار. حدّث البيانات وأعد إعداد التقرير قبل الطباعة.':'Data or version changed. Refresh and rebuild the report before printing.');}financialPrintBase_();}catch(error){fail(error);}
