@@ -764,34 +764,20 @@ finance=function(){
   return html.replace('<footer class="report-footer">',detail+'<footer class="report-footer">');
 };
 
-function markupAllocationPanel_(){
-  if(!canAction('finance','view'))return '';const data=state.data.markupAllocations;if(!data)return `<section class="panel"><button type="button" id="loadMarkupAllocations">${state.lang==='ar'?'عرض تفاصيل النسبة والمسحوبات الداخلية':'View internal markup and withdrawals'}</button><output role="status"></output></section>`;
-  const ar=state.lang==='ar',projects=data.projects.filter(x=>x.earned||x.withdrawn),name=id=>data.projects.find(x=>String(x.id)===String(id))?.name||id;
-  return `<section class="panel internal-markup"><h2>${ar?'النسبة داخليًا — المستحق والمحصّل والمسحوب':'Internal markup — earned, collected and withdrawn'}</h2><p>${ar?'التوزيع أدناه يربط سحب شريك مسجل بالفعل بالمشروع. لا ينفذ سحبًا جديدًا، ولا يزيد المصروفات، ولا يخصم النسبة مرة ثانية من رصيد العميل، ولا يظهر في كشف العميل. التحويل بين حسابات الشركة ليس سحب أرباح.':'Allocation links an already recorded partner withdrawal to a project. It does not move cash, add an expense, deduct markup again from client funds or appear on client statements. Transfers between company accounts are not profit withdrawals.'}</p><div class="table-wrap"><table><thead><tr>${(ar?['المشروع','النسبة المستحقة','النسبة المحصلة','غير المحصلة','المسحوب الموزع','المحصّل المتبقي بعد السحب']:['Project','Earned','Collected','Uncollected','Allocated withdrawals','Collected less withdrawals']).map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>${projects.map(x=>`<tr><td>${esc(x.name)}</td>${[x.earned,x.collected,x.uncollected,x.withdrawn,x.remainingCollected].map(v=>`<td>${money(v)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>${canAction('finance','edit')?`<details><summary>${ar?'توزيع سحب مسجل / تعديل توزيع سابق':'Allocate an existing withdrawal / edit an allocation'}</summary><form id="markupAllocationForm"><label class="field">${ar?'تعديل توزيع سابق «اختياري»':'Edit previous allocation (optional)'}<select name="allocationId"><option value=""></option>${data.allocations.map(x=>`<option value="${esc(x['معرف التوزيع'])}">${esc(name(x['معرف المشروع']))} — ${money(x['المبلغ الأساسي'])}</option>`).join('')}</select></label><div class="form-grid"><label class="field">${ar?'سحب الشريك المسجل':'Recorded partner withdrawal'}<select name="withdrawalId" required><option value=""></option>${data.withdrawals.map(x=>`<option value="${esc(x.id)}">${esc(String(x.date).slice(0,10))} — ${esc(x.description)} — ${money(x.amount)} (${ar?'موزع':'allocated'} ${money(x.allocated)})</option>`).join('')}</select></label><label class="field">${ar?'المشروع':'Project'}<select name="projectId" required><option value=""></option>${projects.map(x=>`<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('')}</select></label><label class="field">${ar?'المبلغ الموزع بالجنيه':'Allocated amount in EGP'}<input name="amount" type="number" min="0" step=".01" required></label><label class="field">${ar?'السبب':'Reason'}<input name="reason" required></label></div><output role="status"></output><button type="submit">${t('save')}</button></form></details>`:''}</section>`;
-}
-const markupWorkspaceViewBase_=view;
-view=function(){return markupWorkspaceViewBase_();};
-document.addEventListener('click',async event=>{
-  const button=event.target.closest('#loadMarkupAllocations');if(!button)return;button.disabled=true;const host=button.closest('#markupWorkspace');
-  try{const response=await api('markup.overview',{});if(!response?.ok)throw new Error(msg(response));state.data.markupAllocations=response.data;if(host?.isConnected)host.innerHTML=markupAllocationPanel_();}
-  catch(error){if(host?.isConnected){host.querySelector('output').textContent=error.message;button.disabled=false;}}
-});
-document.addEventListener('change',event=>{
-  const form=event.target.form;if(form?.getAttribute('id')!=='markupAllocationForm')return;form.dataset.key='';
-  if(event.target.name!=='allocationId')return;
-  const record=state.data.markupAllocations.allocations.find(x=>String(x['معرف التوزيع'])===event.target.value);
-  for(const [name,key]of [['withdrawalId','معرف حركة السحب'],['projectId','معرف المشروع'],['amount','المبلغ الأساسي'],['reason','السبب']]){const field=form.elements.namedItem(name);field.value=record?record[key]:'';field.dispatchEvent(new Event('input',{bubbles:true}));}
-  form.dataset.version=record?String(record['الإصدار']):'';
-});
-document.addEventListener('input',event=>{if(event.target.form?.getAttribute('id')==='markupAllocationForm')event.target.form.dataset.key='';});
-window.addEventListener('submit',async event=>{
-  const form=event.target;if(form.getAttribute('id')!=='markupAllocationForm')return;event.preventDefault();event.stopImmediatePropagation();
-  if(form.dataset.saving==='true'||!form.reportValidity())return;
-  const values=obj(form),payload={withdrawalId:values.withdrawalId,projectId:values.projectId,amount:Number(values.amount),reason:values.reason,id:values.allocationId||'',version:Number(form.dataset.version||0),idempotencyKey:form.dataset.key||(form.dataset.key=crypto.randomUUID())};
-  const button=form.querySelector('button'),output=form.querySelector('output');form.dataset.saving='true';button.disabled=true;
-  try{const response=await api('markup.allocate',payload);if(!response?.ok)throw new Error(msg(response));const fresh=await api('markup.overview',{});if(!fresh?.ok)throw new Error(msg(fresh));state.data.markupAllocations=fresh.data;const host=form.closest('#markupWorkspace');if(host?.isConnected)host.innerHTML=markupAllocationPanel_();}
-  catch(error){output.textContent=error.message;}finally{form.dataset.saving='false';button.disabled=false;}
-},true);
+if(typeof periodReportPanel_==='function'){const workspacePeriodReportPanelBase_=periodReportPanel_;
+periodReportPanel_=function(){
+  const now=new Date(),year=now.getFullYear(),today=`${year}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  return workspacePeriodReportPanelBase_().replace('name="fromDate" type="date" required',`name="fromDate" type="date" value="${year}-01-01" required`).replace('name="toDate" type="date" required',`name="toDate" type="date" value="${today}" required`);
+};}
+if(typeof accountantPackageOutput==='function')accountantPackageOutput=function(p){
+  const ar=state.lang==='ar',s=p.statements||{},section=(title,report)=>`<h2>${title}</h2>${table(report?.rows||[])}<div class="report-summary"><div><span>${ar?'الإجمالي':'Total'}</span><b>${money(report?.total||0)}</b></div></div>`;
+  return `<div class="formal-report">${reportHeader_(ar?'حزمة المحاسب القانوني':'Statutory accountant package',`${p.period.from||'—'} — ${p.period.to||'—'}`)}<div class="report-note">${esc(ar?(p.noticeAr||''):'Review package; not a final statutory filing.')}</div><div class="grid report-totals"><article class="card">${ar?'الإيرادات':'Revenue'}<strong>${money(s.incomeStatement?.revenue)}</strong></article><article class="card">${ar?'المصروفات':'Expenses'}<strong>${money(s.incomeStatement?.expenses)}</strong></article><article class="card">${ar?'صافي الربح':'Net profit'}<strong>${money(s.incomeStatement?.netProfit)}</strong></article><article class="card">${ar?'فرق التوازن':'Balance check'}<strong>${money(s.financialPosition?.balanceCheck)}</strong></article><article class="card">${ar?'صافي ضريبة القيمة المضافة':'Net VAT payable'}<strong>${money(s.taxSummary?.netVatPayable)}</strong></article></div><h2>${ar?'ميزان المراجعة':'Trial balance'}</h2>${table(s.trialBalance||[])}<h2>${ar?'قائمة المركز المالي':'Financial position'}</h2>${table([s.financialPosition||{}])}<h2>${ar?'التدفقات النقدية حسب النشاط':'Cash flow by activity'}</h2>${table(s.cashFlow?.activities||[])}<h2>${ar?'التغير في حقوق الملكية':'Changes in equity'}</h2>${table([s.changesInEquity||{}])}${section(ar?'تفصيل المصروفات':'Expense detail',p.expenses)}${section(ar?'مسحوبات الشركاء':'Partner withdrawals',p.withdrawals)}${section(ar?'السلف والسداد':'Loans and repayments',p.loans)}${section(ar?'المرتبات':'Payroll',p.payroll)}<h2>${ar?'المستندات الناقصة للمراجعة':'Missing supporting documents'}</h2>${table(p.missingDocuments||[])}<footer class="report-footer">FOOZIX Live · Arte Divino · ${esc(String(p.generatedAt||'').slice(0,19))}</footer></div>`;
+};
+if(typeof financeSmart==='function'){const workspaceFinanceSmartBase_=financeSmart;
+function manualJournalForm_(){const ar=state.lang==='ar',accounts=(state.data.ledgerAccounts||[]).filter(x=>String(x['يسمح بالترحيل']).toLowerCase()!=='false'),options='<option value=""></option>'+accounts.map(x=>`<option value="${esc(x['معرف الحساب'])}">${esc(x['كود الحساب']||'')} — ${esc(ar?(x['الاسم العربي']||x['الاسم الإنجليزي']):(x['الاسم الإنجليزي']||x['الاسم العربي']))}</option>`).join('');return `<form id="manualJournalForm"><div class="form-grid"><label class="field">${t('date')}<input name="transactionDate" type="date" required></label><label class="field">${t('type')}<select name="type"><option value="OPENING_BALANCE">${ar?'رصيد افتتاحي':'Opening balance'}</option><option value="ADJUSTMENT">${ar?'تسوية محاسبية':'Accounting adjustment'}</option></select></label><label class="field">${ar?'الحساب المدين':'Debit account'}<select name="debitAccountId" required>${options}</select></label><label class="field">${ar?'الحساب الدائن':'Credit account'}<select name="creditAccountId" required>${options}</select></label><label class="field">${t('amount')}<input name="amount" type="number" min=".01" step=".01" required></label><label class="field field-wide">${t('description')}<input name="description" required></label><label class="field field-wide">${ar?'سبب القيد «يُحفظ في سجل المراجعة»':'Entry reason (saved in audit log)'}<input name="reason" required></label></div><button class="primary">${t('save')}</button></form>`}
+financeSmart=function(){const old=workspaceFinanceSmartBase_(),upgraded=old.replace(/<form id="advancedJournalForm">[\s\S]*?<\/form>/,manualJournalForm_());return `${upgraded}<section class="panel no-print"><h2>${state.lang==='ar'?'تجهيز المحاسب القانوني':'Statutory accountant handoff'}</h2><p>${state.lang==='ar'?'الحزمة موجودة في «السجلات والتقارير» وتجمع القوائم وميزان المراجعة والتدفقات والمصروفات والمسحوبات والسلف والمرتبات والمستندات الناقصة لفترة تختارها.':'The package is in Reports and combines statements, trial balance, cash flow, expenses, withdrawals, loans, payroll and missing documents for the selected period.'}</p><button type="button" id="openAccountantPackageCenter" class="secondary">${state.lang==='ar'?'فتح حزمة المحاسب القانوني':'Open statutory accountant package'}</button></section>`};}
+document.addEventListener('click',event=>{if(event.target.closest('#openAccountantPackageCenter'))openView('reports');});
+document.addEventListener('submit',async event=>{if(event.target.getAttribute('id')!=='manualJournalForm')return;event.preventDefault();event.stopImmediatePropagation();try{const payload=obj(event.target);payload.amount=Number(payload.amount);payload.currency='EGP';payload.idempotencyKey=crypto.randomUUID();await run('accounting.manualJournal',payload);}catch(error){fail(error)}},true);
 
 function historicalMarkupUsagePanel_(){
   if(!canAction('finance','view'))return '';
@@ -1006,6 +992,7 @@ window.addEventListener('submit',async event=>{const form=event.target;if(form.g
 // Preserve the existing editing controls while separating cash from work charges.
 // Preserve the existing editing controls while separating cash from work charges.
 // Preserve the existing editing controls while separating cash from work charges.
+// Preserve the existing editing controls while separating cash from work charges.
 const financialDetailBase_=detailTable_;
 detailTable_=function(report){
   const ar=state.lang==='ar',cash=(report.statement||[]).filter(x=>['CUSTOMER_RECEIPT','CUSTOMER_REFUND'].includes(x.type)),work=(report.statement||[]).filter(x=>!['CUSTOMER_RECEIPT','CUSTOMER_REFUND'].includes(x.type));
@@ -1083,7 +1070,11 @@ async function pullRefreshCurrentView_(){
   const indicator=pullRefreshIndicator_(),ar=state.lang==='ar';
   if(financialUnsaved_()){indicator.textContent=ar?'احفظ أو أغلق التعديل أولًا':'Save or close the edit first';indicator.classList.add('visible');pullRefreshReset_(1800);return false;}
   pullRefreshRunning_=true;indicator.textContent=ar?'جارٍ تحديث الصفحة الحالية…':'Refreshing this page…';indicator.classList.add('visible','refreshing');
-  try{financialMarkStale_();await refreshFinancialData_();indicator.textContent=financialRefreshFailed_?(ar?'تعذر التحديث؛ حاول مرة أخرى':'Refresh failed; try again'):(ar?'تم تحديث الصفحة':'Page refreshed');return !financialRefreshFailed_;}
+  try{
+    if(financialReadViews_.has(state.view)){financialMarkStale_();await refreshFinancialData_();}
+    else{const currentView=state.view;state.loading=true;render();try{await load();state.loadedAt[currentView]=Date.now();financialRefreshFailed_=false;}catch(error){financialRefreshFailed_=true;state.notice={type:'error',text:error.message||String(error)};}finally{state.view=currentView;state.loading=false;render();}}
+    indicator.textContent=financialRefreshFailed_?(ar?'تعذر التحديث؛ حاول مرة أخرى':'Refresh failed; try again'):(ar?'تم تحديث الصفحة':'Page refreshed');return !financialRefreshFailed_;
+  }
   finally{pullRefreshRunning_=false;pullRefreshReset_(financialRefreshFailed_?1800:700);}
 }
 document.addEventListener('touchstart',event=>{
@@ -1112,6 +1103,11 @@ document.addEventListener('pointermove',event=>{
 },{passive:false});
 document.addEventListener('pointerup',event=>{if(!pullRefreshTracking_||event.pointerType==='touch')return;const refresh=pullRefreshDistance_>=68;pullRefreshTracking_=false;if(refresh)pullRefreshCurrentView_();else pullRefreshReset_();},{passive:true});
 document.addEventListener('pointercancel',event=>{if(event.pointerType!=='touch')pullRefreshReset_();},{passive:true});
+const pageRefreshRenderBase_=render;
+render=function(){
+  pageRefreshRenderBase_();const help=document.querySelector('#helpOpen');if(!help||document.querySelector('#pageRefresh'))return;
+  const button=document.createElement('button');button.id='pageRefresh';button.type='button';button.className='help-button page-refresh-button';button.setAttribute('aria-label',state.lang==='ar'?'تحديث الصفحة الحالية':'Refresh current page');button.title=button.getAttribute('aria-label');button.textContent='↻';button.onclick=async()=>{button.disabled=true;button.classList.add('is-refreshing');try{await pullRefreshCurrentView_();}finally{if(button.isConnected){button.disabled=false;button.classList.remove('is-refreshing');}}};help.insertAdjacentElement('afterend',button);
+};
 document.addEventListener('click',event=>{
   if(!event.target.closest('#refreshFinancialData'))return;
   if(financialUnsaved_()){const banner=document.querySelector('#financialFreshness span');if(banner)banner.textContent=state.lang==='ar'?'احفظ أو أغلق النموذج المعدل أولًا؛ لن يتم مسح مدخلاتك تلقائيًا.':'Save or close the edited form first; your input will not be discarded.';return;}

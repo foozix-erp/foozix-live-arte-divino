@@ -20,3 +20,4 @@
 @media print{.help-center,.help-shade{display:none!important}}
 [hidden]{display:none!important}
 .pull-refresh-indicator{position:fixed;z-index:90;top:8px;left:50%;transform:translate(-50%,calc(-140% + var(--pull-distance,0px)));padding:.55rem .9rem;border-radius:99px;background:#fff;color:var(--navy);border:1px solid var(--line);box-shadow:var(--shadow);font-weight:800;opacity:0;pointer-events:none;transition:opacity .14s ease,transform .14s ease;white-space:nowrap}.pull-refresh-indicator.visible{opacity:1}.pull-refresh-indicator.ready,.pull-refresh-indicator.refreshing{background:var(--navy);color:#fff;border-color:var(--navy)}html,body{overscroll-behavior-y:contain}
+.page-refresh-button{font-size:1.45rem;line-height:1}.page-refresh-button.is-refreshing{animation:spin .8s linear infinite}
