@@ -144,7 +144,7 @@ function loginView(message='',presetEmail=''){
   form.onsubmit=event=>{event.preventDefault();document.querySelector('#googleLogin')?.click()};
   mountGoogleLogin_();
 }
-function foozixLoader_(compact=false){return `<div class="foozix-loader foozix-pulse-loader ${compact?'compact':''}" role="status" aria-label="${state.lang==='ar'?'جارٍ تجهيز البيانات':'Preparing data'}"><span class="loader-foozix-lockup"></span></div>`}
+function foozixLoader_(compact=false){return `<div class="foozix-loader foozix-pulse-loader ${compact?'compact':''}" role="status" aria-label="${state.lang==='ar'?'جارٍ تجهيز البيانات':'Preparing data'}"><span class="loader-circuit-f" aria-hidden="true"></span><span class="loader-brand-reveal" aria-hidden="true"></span></div>`}
 function splash(){document.querySelector('#app').innerHTML=`<section class="splash v5-splash"><div class="splash-circuit-field"></div><div class="brand v5-splash-brand"><div class="splash-lockup">${logo()}${foozixLoader_()}</div><p>Powered by FOOZIX</p></div></section>`}
 function canAction(module,action='view'){if(state.profile.role==='SUPER_ADMIN')return true;const actions=(state.profile.permissions&&state.profile.permissions[module])||[];return actions.includes(action)||actions.includes('*')}
 function allowed(k){const m={dashboard:'dashboard',tasks:'approvals',transaction:'transactions',projects:'projects',clients:'clients',parties:'parties',reports:'finance',finance:'finance',employees:'employees',loans:'loans',assets:'assets',audit:'audit',settings:'settings'};return (k==='tasks'&&canAction('transactions','create'))||canAction(m[k],'view')||canAction(m[k],'create')}
@@ -714,7 +714,7 @@ function dashboardWorkspace_(){
   const agreements=(state.data.agreements||[]).filter(x=>(!filter.client||visibleProjects.has(String(x['معرف المشروع'])))&&(!filter.project||String(x['معرف المشروع'])===filter.project)&&(!filter.party||String(x['معرف الطرف'])===filter.party));
   const balances=canAction('agreements','view')?`<section class="panel"><h2>${ar?'الاتفاقات — المتفق عليه والمدفوع والمتبقي':'Agreements — agreed, paid and remaining'}</h2>${agreementTable(agreements)}</section>`:'';
   const alerts=(state.data.alerts||[]).filter(x=>String(x['الوحدة'])==='PROJECT'&&(!filter.project||String(x['معرف السجل'])===filter.project));
-  const warnings=alerts.length?`<section class="panel"><h2>${ar?'تنبيهات المشروعات':'Project alerts'}</h2>${alerts.map(x=>`<p><b>${esc(x['مستوى الخطورة'])}</b> — ${esc(ar?x['الرسالة العربية']:x['الرسالة الإنجليزية'])}</p>`).join('')}</section>`:'';
+  const warnings=alerts.length?v5AlertMarkup_():'';
   return `<h1>${t('dashboard')}</h1>${warnings}${controls}${financial}${balances}`;
 }
 dash=dashboardWorkspace_;

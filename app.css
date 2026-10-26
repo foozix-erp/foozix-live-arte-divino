@@ -66,3 +66,95 @@ body.v5-shell{position:static!important;height:auto!important;min-height:100vh!i
 .menu-toggle{display:grid!important;place-items:center!important;z-index:3}
 .sidebar-backdrop{pointer-events:none!important}
 .sidebar-backdrop.show,body:has(.sidebar.open) .sidebar-backdrop{display:block!important;pointer-events:auto!important}
+
+/* V5 final visual system — one coherent language across every operational page. */
+:root{--v5-ink:#10213c;--v5-teal:#007d70;--v5-teal-deep:#003e3a;--v5-cyan:#15d7c5;--v5-line:#dce9ec;--v5-surface:#fff;--v5-bg:#f5fafb;--v5-shadow:0 10px 30px rgba(16,55,70,.08)}
+body.v5-shell{background:var(--v5-bg)!important;color:var(--v5-ink)!important}
+.topbar{background:rgba(255,255,255,.98)!important;border-bottom:1px solid #e7f0f2!important;box-shadow:0 7px 24px rgba(14,47,68,.07)!important}
+.topbar:after{content:'';position:absolute;inset-inline-start:0;bottom:0;width:42%;height:1px;background:linear-gradient(90deg,transparent,#4de5ce,transparent);opacity:.55}
+.menu-toggle{border:0!important;background:transparent!important;color:var(--v5-ink)!important;box-shadow:none!important}
+.menu-toggle:hover{background:#e9f8f5!important;color:var(--v5-teal)!important}
+.v5-bell{color:var(--v5-ink)!important;background:transparent!important;border:0!important;box-shadow:none!important}
+.content{width:100%;max-width:1560px!important;margin:0 auto!important;padding-top:1.35rem!important}
+.content:before{opacity:.18!important;background-image:radial-gradient(circle at 10% 16%,rgba(21,215,197,.55) 0 2px,transparent 3px),linear-gradient(90deg,rgba(0,125,112,.12) 0 1px,transparent 1px),linear-gradient(0deg,rgba(0,125,112,.09) 0 1px,transparent 1px)!important;background-size:180px 150px,180px 150px,180px 150px!important;mask-image:linear-gradient(90deg,rgba(0,0,0,.7),rgba(0,0,0,.12) 66%,transparent)!important}
+.content>h1{font-size:clamp(1.45rem,2vw,2rem)!important;margin:.2rem 0 1rem!important}
+.content>h1:before{content:'⌁'!important;background:linear-gradient(145deg,#def8f2,#eefcff)!important;color:var(--v5-teal)!important;border:1px solid #c8ece4!important;box-shadow:0 6px 14px rgba(0,125,112,.1)}
+.panel,.card,.formal-report{border:1px solid var(--v5-line)!important;background:rgba(255,255,255,.97)!important;border-radius:18px!important;box-shadow:var(--v5-shadow)!important}
+.panel{padding:1.1rem 1.2rem!important;margin-top:1rem!important}
+.panel h2,.section-heading h2{color:var(--v5-ink)!important;margin:.1rem 0 .8rem!important}
+.form-grid{gap:.85rem 1rem!important}
+.field{color:#34445d;font-weight:650;font-size:.9rem}
+.field input,.field select,.field textarea,.foozix-combobox{border:1px solid #cbdde1!important;border-radius:11px!important;background:#fff!important;color:var(--v5-ink)!important;box-shadow:0 2px 5px rgba(16,55,70,.025)!important;transition:border-color .16s,box-shadow .16s!important}
+.field input:focus,.field select:focus,.field textarea:focus,.foozix-combobox:focus{outline:none!important;border-color:#22bda8!important;box-shadow:0 0 0 4px rgba(34,189,168,.12)!important}
+.actions{align-items:center!important}
+.primary,.secondary,.content button{border-radius:10px!important;font-weight:750!important}
+.primary{background:linear-gradient(135deg,#009982,#007568)!important;border-color:#007568!important;color:#fff!important;box-shadow:0 7px 16px rgba(0,117,104,.16)!important}
+.secondary{background:#fff!important;border-color:#a9cbd0!important;color:#17324d!important}
+.table-wrap{border:1px solid #dce9ec;border-radius:15px;background:#fff;scrollbar-width:thin;scrollbar-color:#93c6be transparent}
+.table-wrap table{margin:0!important}
+table thead th{position:sticky;top:0;z-index:1;background:#f4f9fa!important;color:#40516a!important;font-size:.82rem;font-weight:800!important;border-bottom:1px solid #dce9ec!important}
+table tbody tr{transition:background-color .15s}
+table tbody tr:hover{background:#f1faf8!important}
+th,td{padding:.76rem .72rem!important}
+dialog.panel{border:0!important;border-radius:20px!important;box-shadow:0 25px 80px rgba(4,38,34,.28)!important}
+dialog::backdrop{background:rgba(4,30,27,.38);backdrop-filter:blur(3px)}
+
+/* Approved drawer composition. */
+.sidebar{background:radial-gradient(circle at 18% 20%,rgba(13,199,164,.3),transparent 34%),linear-gradient(160deg,#007d70,#004c46 58%,#00332f)!important;border-radius:34px 0 0 34px!important;box-shadow:-20px 0 55px rgba(1,47,43,.28)!important}
+[dir=ltr] .sidebar{border-radius:0 34px 34px 0!important}
+.sidebar:before{opacity:.96!important;background-image:radial-gradient(circle at 20% 18%,#8dffe8 0 2px,transparent 3px),radial-gradient(circle at 80% 42%,#ffe176 0 2px,transparent 3px),linear-gradient(90deg,transparent 0 22%,rgba(76,255,219,.28) 22% 23%,transparent 23%),linear-gradient(0deg,transparent 0 37%,rgba(76,255,219,.24) 37% 38%,transparent 38%),repeating-linear-gradient(90deg,transparent 0 52px,rgba(104,255,227,.11) 53px 54px,transparent 55px 106px)!important}
+.sidebar-brand{margin:0 2.25rem .35rem!important}
+.sidebar-brand .brand-logo{content:url('assets/brand/arte-divino-approved-transparent.png')!important;width:178px!important;height:98px!important;max-width:178px!important;max-height:98px!important;padding:.42rem!important;background:#fff!important;border-radius:19px!important;filter:none!important;object-fit:contain!important;box-shadow:0 10px 24px rgba(0,28,25,.19)}
+.v5-foozix-mark{display:block!important;width:150px!important;height:50px!important;margin:.42rem auto .1rem!important;background:url('assets/brand/foozix-circuit-f-approved.png') center/contain no-repeat!important;border:0!important;border-radius:11px!important;box-shadow:0 0 22px rgba(53,242,207,.3)!important;filter:none!important}
+.v5-powered{margin:0!important;color:#d9fff7!important;font-size:.67rem!important;letter-spacing:.045em!important}
+.nav{padding:.25rem 0 270px!important;gap:4px!important}
+.nav button{min-height:44px!important;padding:.62rem .85rem!important;border-radius:12px!important;font-size:.94rem!important}
+.nav button:hover{background:rgba(255,255,255,.1)!important}
+.nav button.active{background:linear-gradient(90deg,rgba(21,215,197,.62),rgba(0,139,122,.52))!important;box-shadow:inset 0 0 0 1px rgba(160,255,237,.35),0 7px 17px rgba(0,0,0,.14)!important}
+.super-foozi-launcher{inset-inline-start:45px!important;bottom:28px!important;width:225px!important;height:265px!important;background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;overflow:visible!important;filter:drop-shadow(0 15px 11px rgba(0,27,24,.3))!important;z-index:5!important}
+.super-foozi-launcher span{background-image:url('assets/brand/super-foozi-transparent-v2.png')!important;background-size:200% 100%!important;background-position:left center!important;background-repeat:no-repeat!important}
+.super-foozi-launcher.active span{background-position:right center!important}
+.super-foozi-shade{z-index:90!important;background:rgba(5,29,26,.28)!important;backdrop-filter:blur(4px)!important}
+.super-foozi-chat{z-index:92!important}
+.sidebar .super-foozi-launcher{z-index:93!important}
+body:has(.super-foozi-chat.open) .sidebar{z-index:91!important}
+body:has(.super-foozi-chat.open) .super-foozi-launcher{position:fixed!important;filter:drop-shadow(0 0 22px rgba(63,238,213,.55))!important}
+
+/* Project alerts, KPIs and task cards use the approved mockup language. */
+.v5-alerts{padding:1rem 1.15rem!important}
+.v5-alert-row{box-shadow:none!important;border-radius:12px!important}
+.v5-alert-row summary{min-height:62px!important}
+.v5-alert-copy b{font-size:.92rem!important}
+.financial-dashboard-title{display:flex;align-items:center;justify-content:space-between;margin:1.2rem 0 .7rem!important;color:var(--v5-ink)!important}
+.financial-dashboard-title small{font-size:.72rem;color:#718096;font-weight:600}
+.grid{gap:15px!important}
+.grid .card{min-height:132px!important;padding:1rem 1.05rem!important;overflow:hidden}
+.grid .card:before{float:inline-end;margin:0 0 .4rem .45rem!important}
+.grid .card strong{font-size:clamp(1.2rem,2vw,1.7rem)!important;line-height:1.25!important}
+.funding-usage{min-width:160px!important}.funding-usage>span{height:11px!important;width:104px!important}
+body[data-view="tasks"] .approval-card{border-radius:16px!important;padding:1rem!important;box-shadow:0 6px 18px rgba(20,65,76,.055)!important}
+body[data-view="tasks"] .approval-card .actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.55rem}
+
+/* Approved electrical loading: no spinner and no Loading word. */
+.view-loading{position:relative;min-height:104px!important;display:grid!important;place-items:center!important;background:transparent!important}
+.foozix-pulse-loader{position:relative!important;width:222px!important;height:82px!important;display:grid!important;place-items:center!important;margin:auto!important}
+.loader-circuit-f{display:block;width:222px;height:82px;border-radius:15px;background:url('assets/brand/foozix-circuit-f-approved.png') center/contain no-repeat;animation:v5CircuitPulse .9s ease-in-out infinite alternate;filter:drop-shadow(0 0 8px rgba(34,255,219,.46))}
+.loader-brand-reveal{display:none}
+.v5-splash .foozix-pulse-loader{width:260px!important;height:96px!important}
+.v5-splash .loader-circuit-f{width:260px;height:96px}
+.v5-splash .brand-logo{content:url('assets/brand/arte-divino-approved-transparent.png')!important;filter:none!important;background:transparent!important;border-radius:0!important}
+.v5-splash .splash-lockup{gap:24px!important}
+.v5-splash:before,.splash-circuit-field{background-image:radial-gradient(circle at 13% 20%,rgba(37,224,196,.6) 0 2px,transparent 3px),radial-gradient(circle at 82% 70%,rgba(37,224,196,.5) 0 2px,transparent 3px),linear-gradient(90deg,rgba(0,125,112,.11) 0 1px,transparent 1px),linear-gradient(0deg,rgba(0,125,112,.09) 0 1px,transparent 1px)!important;background-size:190px 160px!important}
+@keyframes v5CircuitPulse{from{opacity:.52;transform:scale(.985);filter:drop-shadow(0 0 3px rgba(34,255,219,.3))}to{opacity:1;transform:scale(1);filter:drop-shadow(0 0 17px rgba(34,255,219,.88))}}
+@media(prefers-reduced-motion:reduce){.loader-circuit-f{animation:none!important;opacity:1!important}.sidebar,.nav button{transition:none!important}}
+
+@media(max-width:760px){
+  .topbar{height:76px!important;min-height:76px!important}.content{padding:.85rem .65rem 2.5rem!important}.content:before{inset:76px 0 0!important}
+  .v5-profile{left:10px!important;top:10px!important}.v5-profile>span:last-child{display:none!important}.v5-avatar{width:49px!important;height:49px!important;flex-basis:49px!important}
+  .welcome{display:block!important;right:62px!important;max-width:145px!important;font-size:.77rem!important}.v5-bell{right:50%!important}
+  .sidebar{width:min(315px,94vw)!important}.sidebar-brand .brand-logo{width:152px!important;height:84px!important}.v5-foozix-mark{width:132px!important;height:44px!important}
+  .super-foozi-launcher{inset-inline-start:47px!important;width:210px!important;height:250px!important}
+  .grid{grid-template-columns:1fr!important}.panel{padding:.85rem!important}.form-grid{grid-template-columns:1fr!important}
+  body[data-view="tasks"] .approval-card .actions{grid-template-columns:1fr 1fr}
+  .splash-lockup{flex-direction:column!important}.v5-splash .brand-logo{width:min(68vw,250px)!important}
+}
