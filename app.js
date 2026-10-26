@@ -1110,7 +1110,7 @@ document.addEventListener('pointercancel',event=>{if(event.pointerType!=='touch'
 const pageRefreshRenderBase_=render;
 render=function(){
   pageRefreshRenderBase_();const help=document.querySelector('#helpOpen');if(!help||document.querySelector('#pageRefresh'))return;
-  const button=document.createElement('button');button.id='pageRefresh';button.type='button';button.className='help-button page-refresh-button';button.setAttribute('aria-label',state.lang==='ar'?'تحديث الصفحة الحالية':'Refresh current page');button.title=button.getAttribute('aria-label');button.textContent='↻';button.onclick=async()=>{button.disabled=true;button.classList.add('is-refreshing');try{await pullRefreshCurrentView_();}finally{if(button.isConnected){button.disabled=false;button.classList.remove('is-refreshing');}}};help.insertAdjacentElement('afterend',button);
+  const button=document.createElement('button');button.id='pageRefresh';button.type='button';button.className='help-button page-refresh-button';button.setAttribute('aria-label',state.lang==='ar'?'تحديث الصفحة الحالية':'Refresh current page');button.title=button.getAttribute('aria-label');button.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6v5h-5"></path><path d="M19 11a7.5 7.5 0 1 0 .1 5"></path></svg>';button.onclick=async()=>{button.disabled=true;button.classList.add('is-refreshing');try{await pullRefreshCurrentView_();}finally{if(button.isConnected){button.disabled=false;button.classList.remove('is-refreshing');}}};help.insertAdjacentElement('afterend',button);
 };
 document.addEventListener('click',event=>{
   if(!event.target.closest('#refreshFinancialData'))return;
