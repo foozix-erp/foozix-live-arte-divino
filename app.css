@@ -261,6 +261,16 @@ body:has(.super-foozi-chat.open) .super-foozi-launcher{filter:drop-shadow(0 0 20
   width:min(315px,94vw)!important;
   padding:16px 14px 12px!important;
   contain:paint!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  overscroll-behavior:contain!important;
+  scrollbar-width:thin!important;
+  scrollbar-color:rgba(255,255,255,.28) transparent!important;
+}
+.v5-shell .nav{
+  flex:0 0 auto!important;
+  overflow:visible!important;
+  min-height:auto!important;
 }
 .v5-shell .sidebar-brand{margin:0 34px 4px!important;gap:0!important}
 .v5-shell .sidebar-brand .brand-logo{width:158px!important;height:76px!important;max-width:158px!important;max-height:76px!important}
