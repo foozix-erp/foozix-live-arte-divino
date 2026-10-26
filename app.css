@@ -162,7 +162,7 @@ body[data-view="tasks"] .approval-card .actions{display:grid;grid-template-colum
 /* Approved drawer and loading behavior — final implementation. */
 .menu-toggle,.v5-drawer-close{display:none!important}
 .sidebar{
-  width:min(315px,94vw)!important;
+  width:min(340px,94vw)!important;
   padding:22px 18px 18px!important;
   background-color:#004b45!important;
   background-image:url('assets/brand/sidebar-circuit-background-approved.png')!important;
@@ -175,59 +175,62 @@ body[data-view="tasks"] .approval-card .actions{display:grid;grid-template-colum
   overflow:hidden!important;
 }
 .sidebar:before,.sidebar:after{content:none!important}
-.sidebar-brand{display:flex!important;flex-direction:column!important;align-items:center!important;gap:3px!important;margin:0 22px 8px!important;flex:0 0 auto!important}
+.sidebar-brand{display:flex!important;flex-direction:column!important;align-items:center!important;gap:4px!important;margin:0 34px 10px!important;flex:0 0 auto!important}
 .sidebar-brand .brand-logo{
   content:url('assets/brand/arte-divino-approved-transparent.png')!important;
-  width:168px!important;height:86px!important;max-width:168px!important;max-height:86px!important;
+  width:184px!important;height:94px!important;max-width:184px!important;max-height:94px!important;
   padding:0!important;margin:0 auto!important;background:transparent!important;border:0!important;border-radius:0!important;
   filter:brightness(0) invert(1) drop-shadow(0 3px 8px rgba(0,0,0,.2))!important;box-shadow:none!important;object-fit:contain!important;
 }
-.v5-foozix-lockup{display:flex!important;align-items:flex-end!important;justify-content:center!important;gap:4px!important;width:100%!important;margin:0 auto 4px!important}
+.v5-foozix-lockup{display:flex!important;align-items:center!important;justify-content:center!important;gap:5px!important;width:100%!important;margin:-2px auto 7px!important}
 .v5-foozix-mark{
-  display:block!important;width:50px!important;height:55px!important;flex:0 0 50px!important;margin:0!important;
+  display:block!important;width:48px!important;height:48px!important;flex:0 0 48px!important;margin:0!important;
   background:url('assets/brand/foozix-f-approved-transparent.png') center/contain no-repeat!important;
   border:0!important;border-radius:0!important;box-shadow:none!important;filter:drop-shadow(0 0 7px rgba(51,226,255,.38))!important;
 }
-.v5-powered{display:block!important;margin:0 0 8px!important;color:#fff!important;font:400 10px/1.1 'Segoe UI',Tahoma,sans-serif!important;white-space:nowrap!important;letter-spacing:0!important}
+.v5-powered{display:block!important;margin:0!important;color:#fff!important;font:400 11px/1.1 'Segoe UI',Tahoma,sans-serif!important;white-space:nowrap!important;letter-spacing:0!important}
 .v5-powered::first-line{font-weight:400}.v5-powered:after{content:none!important}
 .nav{
   display:flex!important;flex-direction:column!important;gap:3px!important;min-height:0!important;overflow-y:auto!important;overflow-x:hidden!important;
-  padding:2px 2px 14px!important;scrollbar-width:thin!important;scrollbar-color:rgba(255,255,255,.28) transparent!important;
+  padding:2px 4px 12px!important;scrollbar-width:thin!important;scrollbar-color:rgba(255,255,255,.28) transparent!important;
 }
-.nav button[data-view]{flex:0 0 auto!important;min-height:42px!important;padding:.55rem .75rem!important;border-radius:11px!important;background:transparent!important;color:#fff!important;font-size:.91rem!important}
+.nav button[data-view]{flex:0 0 auto!important;width:calc(100% - 12px)!important;margin-inline:6px!important;min-height:46px!important;padding:.62rem .82rem!important;border-radius:12px!important;background:transparent!important;color:#fff!important;font-size:.96rem!important;overflow:hidden!important}
 .nav button[data-view].active{background:linear-gradient(90deg,rgba(4,160,139,.72),rgba(5,106,96,.54))!important;border:1px solid rgba(82,255,225,.64)!important;box-shadow:0 0 12px rgba(28,226,196,.16)!important}
 .nav-settings{margin-top:0!important}
 .super-foozi-launcher{
   position:relative!important;inset:auto!important;order:20!important;align-self:center!important;flex:0 0 205px!important;
-  width:176px!important;height:205px!important;margin:2px auto 4px!important;padding:0!important;
+  width:196px!important;height:228px!important;margin:5px auto 2px!important;padding:0!important;
   background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;overflow:visible!important;
   filter:drop-shadow(0 12px 9px rgba(0,28,25,.28))!important;z-index:2!important;
 }
 .super-foozi-launcher span{background-image:url('assets/brand/super-foozi-transparent-v2.png')!important;background-size:200% 100%!important;background-position:left center!important;background-repeat:no-repeat!important}
 .super-foozi-launcher.active span{background-position:right center!important}
+.v5-drawer-actions{order:30!important;display:grid!important;grid-template-columns:minmax(72px,.7fr) minmax(150px,1.3fr)!important;gap:7px!important;width:100%!important;margin-top:4px!important}
 .v5-drawer-action{
-  position:relative!important;inset:auto!important;order:30!important;flex:0 0 auto!important;width:100%!important;min-height:38px!important;
-  margin:3px 0 0!important;padding:.38rem .55rem!important;border:1px solid rgba(213,255,247,.45)!important;
+  position:relative!important;inset:auto!important;flex:0 0 auto!important;width:100%!important;min-height:40px!important;
+  margin:0!important;padding:.4rem .55rem!important;border:1px solid rgba(213,255,247,.45)!important;
   border-radius:999px!important;background:rgba(0,67,61,.38)!important;color:#fff!important;font-size:.72rem!important;white-space:normal!important;
 }
-.v5-drawer-action#lang{order:30!important}.v5-drawer-action#logout{order:31!important;max-width:none!important}
+.v5-drawer-action#lang,.v5-drawer-action#logout{order:unset!important;max-width:none!important}
 .drawer-edge-toggle{
-  position:fixed;top:28px;z-index:88;width:58px;height:78px;padding:0;border:0;cursor:pointer;
+  position:fixed;top:20px;z-index:88;width:70px;height:92px;padding:0;border:0;cursor:pointer;
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
-  background:linear-gradient(150deg,#007d70,#004b45);box-shadow:0 5px 18px rgba(0,47,42,.25);
-  transition:right .28s cubic-bezier(.2,.8,.2,1),left .28s cubic-bezier(.2,.8,.2,1),background-color .2s;
+  background-color:transparent;background-image:url('assets/brand/sidebar-circuit-background-approved.png');background-size:340px 100vh;background-repeat:no-repeat;box-shadow:none;
+  transition:right .28s cubic-bezier(.2,.8,.2,1),left .28s cubic-bezier(.2,.8,.2,1);
 }
 .drawer-edge-toggle i{display:block;width:25px;height:3px;border-radius:4px;background:#fff;box-shadow:0 0 5px rgba(255,255,255,.25)}
-[dir=rtl] .drawer-edge-toggle{right:0;left:auto;border-radius:32px 0 0 32px}
-[dir=ltr] .drawer-edge-toggle{left:0;right:auto;border-radius:0 32px 32px 0}
-[dir=rtl] body:has(.sidebar.open) .drawer-edge-toggle{right:min(315px,94vw);background:transparent;box-shadow:none}
-[dir=ltr] body:has(.sidebar.open) .drawer-edge-toggle{left:min(315px,94vw);background:transparent;box-shadow:none}
+[dir=rtl] .drawer-edge-toggle{right:0;left:auto;background-position:left top;border-radius:34px 0 0 34px}
+[dir=ltr] .drawer-edge-toggle{left:0;right:auto;background-position:right top;border-radius:0 34px 34px 0}
+[dir=rtl] body:has(.sidebar.open) .drawer-edge-toggle{right:min(270px,calc(94vw - 70px));background-image:none}
+[dir=ltr] body:has(.sidebar.open) .drawer-edge-toggle{left:min(270px,calc(94vw - 70px));background-image:none}
 
-/* Full-screen opening: F pulse, then the white ARTE DIVINO state. */
-.v5-splash{position:fixed!important;inset:0!important;width:100vw!important;height:100dvh!important;min-height:0!important;overflow:hidden!important;background:#003e3a url('assets/brand/opening-screen-f-approved.png') center/cover no-repeat!important}
-.v5-splash:before,.v5-splash .splash-circuit-field,.v5-splash .v5-splash-brand{display:none!important}
-.v5-splash:after{content:'';position:absolute;inset:0;background:url('assets/brand/opening-screen-arte-approved.png') center/cover no-repeat;opacity:0;animation:v5OpeningReveal 2.2s ease forwards}
-@keyframes v5OpeningReveal{0%,50%{opacity:0}72%,100%{opacity:1}}
+/* Full-screen opening: exact approved F first, then the exact official Arte Divino mark. */
+.v5-splash{position:fixed!important;inset:0!important;width:100vw!important;height:100dvh!important;min-height:0!important;overflow:hidden!important;background:#003e3a url('assets/brand/opening-screen-circuit-background-approved.png') center/cover no-repeat!important}
+.v5-splash-f,.v5-splash-arte{position:absolute;inset:0;display:block;pointer-events:none;background-position:center;background-repeat:no-repeat}
+.v5-splash-f{background-image:url('assets/brand/foozix-f-approved-transparent.png');background-size:min(25vw,260px) auto;animation:v5OpeningF 2.85s ease-in-out both;filter:drop-shadow(0 0 18px rgba(65,235,255,.8))}
+.v5-splash-arte{background-image:url('assets/brand/arte-divino-approved-transparent.png');background-size:min(42vw,430px) auto;filter:brightness(0) invert(1) drop-shadow(0 4px 16px rgba(0,0,0,.18));opacity:0;animation:v5OpeningArte 2.85s ease both}
+@keyframes v5OpeningF{0%{opacity:.42;transform:scale(.94)}18%,48%{opacity:1;transform:scale(1.035)}58%{opacity:1;transform:scale(1)}72%,100%{opacity:0;transform:scale(.96)}}
+@keyframes v5OpeningArte{0%,60%{opacity:0;transform:scale(.96)}76%,100%{opacity:1;transform:scale(1)}}
 
 /* Internal requests: no loading component. Blur only the data area; pulse the drawer F when visible. */
 .view-loading{display:none!important}
@@ -238,13 +241,16 @@ body:has(.super-foozi-chat.open) .super-foozi-launcher{filter:drop-shadow(0 0 20
 
 @media(max-width:760px){
   .sidebar{width:min(300px,94vw)!important;padding:18px 15px 14px!important}
-  [dir=rtl] body:has(.sidebar.open) .drawer-edge-toggle{right:min(300px,94vw)}
-  [dir=ltr] body:has(.sidebar.open) .drawer-edge-toggle{left:min(300px,94vw)}
+  [dir=rtl] body:has(.sidebar.open) .drawer-edge-toggle{right:min(230px,calc(94vw - 70px))}
+  [dir=ltr] body:has(.sidebar.open) .drawer-edge-toggle{left:min(230px,calc(94vw - 70px))}
   .drawer-edge-toggle{top:18px;width:52px;height:70px}
   .drawer-edge-toggle i{width:23px}
   .sidebar-brand .brand-logo{width:150px!important;height:72px!important}
   .v5-foozix-mark{width:45px!important;height:50px!important;flex-basis:45px!important}
-  .super-foozi-launcher{width:162px!important;height:188px!important;flex-basis:188px!important}
+  .super-foozi-launcher{width:178px!important;height:207px!important;flex-basis:207px!important}
   .nav button[data-view]{min-height:41px!important;font-size:.87rem!important}
 }
-@media(prefers-reduced-motion:reduce){.v5-splash:after{animation:none!important;opacity:1}.v5-foozix-mark{animation:none!important}.drawer-edge-toggle{transition:none!important}}
+@media(prefers-reduced-motion:reduce){.v5-splash-f{animation:none!important;opacity:0}.v5-splash-arte{animation:none!important;opacity:1}.v5-foozix-mark{animation:none!important}.drawer-edge-toggle{transition:none!important}}
+
+/* Drawer opening must not blur the page; blur is reserved for real data loading. */
+.sidebar-backdrop{backdrop-filter:none!important;background:rgba(4,30,27,.08)!important}
