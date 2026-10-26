@@ -1183,7 +1183,7 @@ function v5FinalizeDrawer_(){
   side.querySelector('.v5-drawer-close')?.remove();
   top?.querySelector('#menuToggle')?.setAttribute('aria-hidden','true');
   let toggle=document.querySelector('#drawerEdgeToggle');
-  if(!toggle){side.insertAdjacentHTML('afterend','<button id="drawerEdgeToggle" class="drawer-edge-toggle" type="button" aria-label="فتح أو إغلاق القائمة" aria-expanded="false"><i></i><i></i><i></i></button>');toggle=document.querySelector('#drawerEdgeToggle')}
+  if(!toggle){side.insertAdjacentHTML('afterend','<button id="drawerEdgeToggle" class="drawer-edge-toggle" type="button" aria-label="فتح أو إغلاق القائمة" aria-expanded="false"><span class="drawer-menu-lines" aria-hidden="true">☰</span></button>');toggle=document.querySelector('#drawerEdgeToggle')}
   toggle.setAttribute('aria-expanded',String(side.classList.contains('open')));
   toggle.onclick=()=>setSidebar(!side.classList.contains('open'));
   const launcher=document.querySelector('#superFooziLauncher'),lang=top?.querySelector('#lang')||side.querySelector('#lang'),logout=top?.querySelector('#logout')||side.querySelector('#logout');
