@@ -283,3 +283,79 @@ body:has(.super-foozi-chat.open) .super-foozi-launcher{filter:drop-shadow(0 0 20
   [dir=rtl] .v5-shell:has(.sidebar.open) .drawer-edge-toggle{right:min(242px,calc(94vw - 58px))!important}
   [dir=ltr] .v5-shell:has(.sidebar.open) .drawer-edge-toggle{left:min(242px,calc(94vw - 58px))!important}
 }
+
+/* V5.0.14 — visual parity pass verified against the live desktop PWA. */
+.v5-shell .sidebar{
+  isolation:isolate!important;
+  overflow:hidden!important;
+}
+.v5-shell .sidebar-brand{
+  flex:0 0 116px!important;
+  justify-content:flex-start!important;
+}
+.v5-shell .sidebar-brand .brand-logo{
+  display:block!important;
+  object-fit:contain!important;
+}
+.v5-shell .v5-foozix-lockup{
+  flex:0 0 40px!important;
+  overflow:visible!important;
+}
+.v5-shell .nav{
+  box-sizing:border-box!important;
+  max-width:100%!important;
+  overscroll-behavior:contain!important;
+  scrollbar-gutter:stable!important;
+}
+.v5-shell .nav button[data-view],
+.v5-shell .nav button[data-view].active{
+  box-sizing:border-box!important;
+  max-width:calc(100% - 12px)!important;
+  clip-path:inset(0 round 12px)!important;
+}
+.v5-shell .super-foozi-launcher{
+  order:20!important;
+  position:relative!important;
+  inset:auto!important;
+  align-self:center!important;
+  min-height:190px!important;
+  background:transparent!important;
+  overflow:visible!important;
+}
+.v5-shell .v5-drawer-actions{
+  order:30!important;
+  flex:0 0 38px!important;
+  box-sizing:border-box!important;
+}
+.v5-shell .drawer-edge-toggle{
+  overflow:hidden!important;
+  background-color:#004b45!important;
+  background-image:url('assets/brand/sidebar-circuit-background-approved.png')!important;
+  border:0!important;
+  outline:0!important;
+  box-shadow:none!important;
+}
+.v5-shell .drawer-edge-toggle i{
+  display:block!important;
+  flex:0 0 3px!important;
+  background:#fff!important;
+  opacity:1!important;
+}
+[dir=rtl] .v5-shell:has(.sidebar.open) .drawer-edge-toggle{
+  right:min(257px,calc(94vw - 58px))!important;
+  border-radius:34px 0 0 34px!important;
+  background-position:left top!important;
+}
+[dir=ltr] .v5-shell:has(.sidebar.open) .drawer-edge-toggle{
+  left:min(257px,calc(94vw - 58px))!important;
+  border-radius:0 34px 34px 0!important;
+  background-position:right top!important;
+}
+@media(max-height:820px){
+  .v5-shell .sidebar-brand{flex-basis:105px!important}
+  .v5-shell .sidebar-brand .brand-logo{height:68px!important;max-height:68px!important}
+  .v5-shell .v5-foozix-lockup{min-height:36px!important;flex-basis:36px!important}
+  .v5-shell .v5-foozix-mark{width:36px!important;height:36px!important;flex-basis:36px!important}
+  .v5-shell .nav button[data-view]{min-height:37px!important;padding-block:.35rem!important}
+  .v5-shell .super-foozi-launcher{width:142px!important;height:184px!important;min-height:184px!important;flex-basis:184px!important}
+}
