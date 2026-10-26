@@ -418,6 +418,10 @@ body:has(.super-foozi-chat.open) .super-foozi-launcher{filter:drop-shadow(0 0 20
   background-image:none!important;
   background-color:transparent!important;
 }
+.v5-shell .drawer-edge-toggle.drawer-open{
+  background-image:none!important;
+  background-color:transparent!important;
+}
 [dir=rtl] .v5-shell:has(.sidebar.open) .drawer-edge-toggle{
   right:min(249px,calc(94vw - 66px))!important;
   left:auto!important;
