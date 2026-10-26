@@ -638,11 +638,11 @@ body.v5-shell .topbar .page-refresh-button.is-refreshing svg{
 /* V5.0.30 — identical menu-line coordinates in both drawer states. */
 .v5-shell .drawer-menu-lines::before,
 .v5-shell .drawer-edge-toggle:not(.drawer-open) .drawer-menu-lines::before{
-  top:13px!important;
+  top:10px!important;
 }
 .v5-shell .drawer-edge-toggle.drawer-open .drawer-menu-lines::before,
 body:has(.sidebar.open) .drawer-edge-toggle .drawer-menu-lines::before{
-  top:-5px!important;
+  top:-23px!important;
 }
 body.v5-shell .topbar .page-refresh-button{
   z-index:12!important;
