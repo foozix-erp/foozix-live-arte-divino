@@ -255,3 +255,31 @@ body:has(.super-foozi-chat.open) .super-foozi-launcher{filter:drop-shadow(0 0 20
 
 /* Drawer opening must not blur the page; blur is reserved for real data loading. */
 .sidebar-backdrop{backdrop-filter:none!important;background:rgba(4,30,27,.08)!important}
+
+/* V5.0.13 — final visual correction against the approved drawer reference. */
+.v5-shell .sidebar{
+  width:min(315px,94vw)!important;
+  padding:16px 14px 12px!important;
+  contain:paint!important;
+}
+.v5-shell .sidebar-brand{margin:0 34px 4px!important;gap:0!important}
+.v5-shell .sidebar-brand .brand-logo{width:158px!important;height:76px!important;max-width:158px!important;max-height:76px!important}
+.v5-shell .v5-foozix-lockup{direction:ltr!important;min-height:43px!important;margin:-2px auto 4px!important;gap:4px!important}
+.v5-shell .v5-foozix-mark{width:42px!important;height:42px!important;flex-basis:42px!important}
+.v5-shell .v5-powered{font-size:10px!important;line-height:1!important}
+.v5-shell .nav{gap:1px!important;padding:0 4px 10px!important;overflow-y:auto!important;overflow-x:hidden!important}
+.v5-shell .nav button[data-view]{width:calc(100% - 12px)!important;margin:0 6px!important;min-height:39px!important;padding:.43rem .7rem!important;font-size:.88rem!important;border:1px solid transparent!important;box-shadow:none!important;transform:none!important}
+.v5-shell .nav button[data-view].active{box-shadow:inset 0 0 0 1px rgba(137,255,235,.26)!important}
+.v5-shell .nav-icon{width:21px!important;height:21px!important;flex-basis:21px!important}
+.v5-shell .super-foozi-launcher{width:150px!important;height:200px!important;flex:0 0 200px!important;margin:3px auto 0!important;transform:none!important}
+.v5-shell .v5-drawer-actions{grid-template-columns:78px minmax(0,1fr)!important;gap:6px!important;margin:0!important;padding:0 3px 2px!important}
+.v5-shell .v5-drawer-action{min-width:0!important;min-height:36px!important;height:36px!important;padding:.25rem .45rem!important;font-size:.68rem!important;overflow:hidden!important}
+.v5-shell .drawer-edge-toggle{top:16px!important;width:58px!important;height:80px!important;background-size:315px 100vh!important}
+.v5-shell .drawer-edge-toggle i{width:24px!important;height:3px!important}
+[dir=rtl] .v5-shell:has(.sidebar.open) .drawer-edge-toggle{right:min(257px,calc(94vw - 58px))!important}
+[dir=ltr] .v5-shell:has(.sidebar.open) .drawer-edge-toggle{left:min(257px,calc(94vw - 58px))!important}
+@media(max-width:560px){
+  .v5-shell .sidebar{width:min(300px,94vw)!important;padding-inline:12px!important}
+  [dir=rtl] .v5-shell:has(.sidebar.open) .drawer-edge-toggle{right:min(242px,calc(94vw - 58px))!important}
+  [dir=ltr] .v5-shell:has(.sidebar.open) .drawer-edge-toggle{left:min(242px,calc(94vw - 58px))!important}
+}
