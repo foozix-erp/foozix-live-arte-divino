@@ -310,7 +310,10 @@ body:has(.super-foozi-chat.open) .super-foozi-launcher{filter:drop-shadow(0 0 20
 .v5-shell .nav button[data-view],
 .v5-shell .nav button[data-view].active{
   box-sizing:border-box!important;
-  max-width:calc(100% - 12px)!important;
+  width:auto!important;
+  max-width:none!important;
+  align-self:stretch!important;
+  margin-inline:8px!important;
   clip-path:inset(0 round 12px)!important;
 }
 .v5-shell .super-foozi-launcher{
@@ -342,14 +345,18 @@ body:has(.super-foozi-chat.open) .super-foozi-launcher{filter:drop-shadow(0 0 20
   opacity:1!important;
 }
 [dir=rtl] .v5-shell:has(.sidebar.open) .drawer-edge-toggle{
-  right:min(257px,calc(94vw - 58px))!important;
+  right:min(305px,calc(94vw - 10px))!important;
   border-radius:34px 0 0 34px!important;
   background-position:left top!important;
 }
 [dir=ltr] .v5-shell:has(.sidebar.open) .drawer-edge-toggle{
-  left:min(257px,calc(94vw - 58px))!important;
+  left:min(305px,calc(94vw - 10px))!important;
   border-radius:0 34px 34px 0!important;
   background-position:right top!important;
+}
+@media(max-width:560px){
+  [dir=rtl] .v5-shell:has(.sidebar.open) .drawer-edge-toggle{right:min(290px,calc(94vw - 10px))!important}
+  [dir=ltr] .v5-shell:has(.sidebar.open) .drawer-edge-toggle{left:min(290px,calc(94vw - 10px))!important}
 }
 @media(max-height:820px){
   .v5-shell .sidebar-brand{flex-basis:105px!important}
