@@ -386,3 +386,63 @@ body:has(.super-foozi-chat.open) .super-foozi-launcher{filter:drop-shadow(0 0 20
   .v5-shell .nav button[data-view]{min-height:37px!important;padding-block:.35rem!important}
   .v5-shell .super-foozi-launcher{width:142px!important;height:184px!important;min-height:184px!important;flex-basis:184px!important}
 }
+
+/* V5.0.20 — single-layer drawer. The approved artwork now has a real alpha cutout. */
+.v5-shell .sidebar{
+  width:min(315px,94vw)!important;
+  padding:16px 14px 12px!important;
+  background-color:transparent!important;
+  background-image:url('assets/brand/sidebar-circuit-background-transparent.png')!important;
+  background-size:100% 100%!important;
+  background-position:center!important;
+  background-repeat:no-repeat!important;
+  border:0!important;
+  border-radius:0!important;
+  box-shadow:none!important;
+  contain:paint!important;
+}
+.v5-shell .drawer-edge-toggle{
+  top:17px!important;
+  width:66px!important;
+  height:78px!important;
+  border:0!important;
+  border-radius:0!important;
+  box-shadow:none!important;
+  background-color:transparent!important;
+  background-image:url('assets/brand/sidebar-circuit-background-transparent.png')!important;
+  background-size:315px 100vh!important;
+  background-position:left top!important;
+  background-repeat:no-repeat!important;
+}
+.v5-shell:has(.sidebar.open) .drawer-edge-toggle{
+  background-image:none!important;
+  background-color:transparent!important;
+}
+[dir=rtl] .v5-shell:has(.sidebar.open) .drawer-edge-toggle{
+  right:min(249px,calc(94vw - 66px))!important;
+  left:auto!important;
+}
+[dir=ltr] .v5-shell:has(.sidebar.open) .drawer-edge-toggle{
+  left:min(249px,calc(94vw - 66px))!important;
+  right:auto!important;
+}
+.v5-shell .drawer-menu-lines{
+  position:relative!important;
+  z-index:2!important;
+  color:#fff!important;
+  font:400 31px/1 Arial,sans-serif!important;
+  filter:drop-shadow(0 0 4px rgba(0,52,47,.72))!important;
+}
+.v5-shell .nav .super-foozi-launcher,
+.v5-shell .nav .super-foozi-launcher:hover,
+.v5-shell .nav .super-foozi-launcher:focus{
+  background-color:transparent!important;
+  background-image:none!important;
+  box-shadow:none!important;
+}
+@media(max-width:560px){
+  .v5-shell .sidebar{width:min(300px,94vw)!important}
+  .v5-shell .drawer-edge-toggle{background-size:300px 100vh!important}
+  [dir=rtl] .v5-shell:has(.sidebar.open) .drawer-edge-toggle{right:min(234px,calc(94vw - 66px))!important}
+  [dir=ltr] .v5-shell:has(.sidebar.open) .drawer-edge-toggle{left:min(234px,calc(94vw - 66px))!important}
+}
