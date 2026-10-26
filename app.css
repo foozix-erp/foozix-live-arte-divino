@@ -522,7 +522,7 @@ body:has(.super-foozi-chat.open) .super-foozi-launcher{filter:drop-shadow(0 0 20
   content:''!important;
   position:absolute!important;
   left:28px!important;
-  top:19px!important;
+  top:17px!important;
   width:25px!important;
   height:3px!important;
   border-radius:99px!important;
@@ -611,4 +611,26 @@ body.v5-shell .topbar .page-refresh-button:hover{background:#006e62!important;tr
 @media(max-width:760px){
   .v5-shell .v5-profile{left:10px!important}
   .v5-shell .page-refresh-button{display:grid!important;top:18px!important;right:205px!important;width:40px!important;height:40px!important;border-radius:12px!important}
+}
+
+/* V5.0.29 — refresh sits at the far right before the welcome text. */
+body.v5-shell .topbar .page-refresh-button{
+  right:78px!important;
+  animation:none!important;
+  transform:none!important;
+}
+body.v5-shell .topbar .welcome{
+  right:134px!important;
+}
+body.v5-shell .topbar .page-refresh-button.is-refreshing{
+  animation:none!important;
+  transform:none!important;
+}
+body.v5-shell .topbar .page-refresh-button.is-refreshing svg{
+  animation:v5RefreshArrowSpin .8s linear infinite!important;
+}
+@keyframes v5RefreshArrowSpin{to{transform:rotate(360deg)}}
+@media(max-width:760px){
+  body.v5-shell .topbar .page-refresh-button{right:68px!important}
+  body.v5-shell .topbar .welcome{right:116px!important}
 }
