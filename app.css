@@ -472,3 +472,65 @@ body:has(.super-foozi-chat.open) .super-foozi-launcher{filter:drop-shadow(0 0 20
   [dir=rtl] .v5-shell:has(.sidebar.open) .drawer-edge-toggle{right:min(234px,calc(94vw - 66px))!important}
   [dir=ltr] .v5-shell:has(.sidebar.open) .drawer-edge-toggle{left:min(234px,calc(94vw - 66px))!important}
 }
+
+/* V5.0.24 — approved header lockup and bare three-line drawer control. */
+.v5-shell .sidebar-brand{
+  position:relative!important;
+  align-items:center!important;
+  justify-content:flex-start!important;
+  transform:translateX(12px)!important;
+}
+[dir=ltr] .v5-shell .sidebar-brand{transform:translateX(-12px)!important}
+.v5-shell .sidebar-brand .brand-logo{
+  width:176px!important;
+  max-width:176px!important;
+  height:78px!important;
+  max-height:78px!important;
+  margin:0 auto!important;
+}
+.v5-shell .v5-foozix-lockup{
+  width:auto!important;
+  min-width:0!important;
+  align-self:center!important;
+  justify-content:center!important;
+  gap:3px!important;
+  margin:-2px auto 3px!important;
+}
+.v5-shell .v5-foozix-mark{
+  width:38px!important;
+  height:38px!important;
+  flex-basis:38px!important;
+}
+.v5-shell .v5-powered{
+  font-size:10px!important;
+  line-height:1!important;
+}
+.v5-shell .drawer-menu-lines{
+  position:absolute!important;
+  inset:0!important;
+  width:auto!important;
+  height:auto!important;
+  display:block!important;
+  overflow:hidden!important;
+  color:transparent!important;
+  font-size:0!important;
+  text-shadow:none!important;
+  transform:none!important;
+  filter:none!important;
+}
+.v5-shell .drawer-menu-lines::before{
+  content:''!important;
+  position:absolute!important;
+  left:10px!important;
+  top:29px!important;
+  width:25px!important;
+  height:3px!important;
+  border-radius:99px!important;
+  background:#fff!important;
+  box-shadow:0 8px 0 #fff,0 16px 0 #fff,0 0 7px rgba(255,255,255,.35)!important;
+}
+@media(max-width:560px){
+  .v5-shell .sidebar-brand{transform:translateX(9px)!important}
+  [dir=ltr] .v5-shell .sidebar-brand{transform:translateX(-9px)!important}
+  .v5-shell .sidebar-brand .brand-logo{width:164px!important;max-width:164px!important}
+}
