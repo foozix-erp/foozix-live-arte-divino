@@ -637,9 +637,12 @@ body.v5-shell .topbar .page-refresh-button.is-refreshing svg{
 
 /* V5.0.30 — identical menu-line coordinates in both drawer states. */
 .v5-shell .drawer-menu-lines::before,
+.v5-shell .drawer-edge-toggle:not(.drawer-open) .drawer-menu-lines::before{
+  top:13px!important;
+}
 .v5-shell .drawer-edge-toggle.drawer-open .drawer-menu-lines::before,
 body:has(.sidebar.open) .drawer-edge-toggle .drawer-menu-lines::before{
-  top:15px!important;
+  top:-5px!important;
 }
 body.v5-shell .topbar .page-refresh-button{
   z-index:12!important;
@@ -650,3 +653,7 @@ body.v5-shell .topbar .welcome{
   z-index:2!important;
   pointer-events:none!important;
 }
+
+/* Allow the approved open-state line position to extend above its visual box. */
+.v5-shell .drawer-edge-toggle,
+.v5-shell .drawer-menu-lines{overflow:visible!important}
