@@ -226,6 +226,7 @@ body[data-view="tasks"] .approval-card .actions{display:grid;grid-template-colum
 
 /* Full-screen opening: exact approved F first, then the exact official Arte Divino mark. */
 .v5-splash{position:fixed!important;inset:0!important;width:100vw!important;height:100dvh!important;min-height:0!important;overflow:hidden!important;background:#003e3a url('assets/brand/opening-screen-circuit-background-approved.png') center/cover no-repeat!important}
+.v5-splash:before,.v5-splash:after{display:none!important;content:none!important}
 .v5-splash-f,.v5-splash-arte{position:absolute;inset:0;display:block;pointer-events:none;background-position:center;background-repeat:no-repeat}
 .v5-splash-f{background-image:url('assets/brand/foozix-f-approved-transparent.png');background-size:min(25vw,260px) auto;animation:v5OpeningF 2.85s ease-in-out both;filter:drop-shadow(0 0 18px rgba(65,235,255,.8))}
 .v5-splash-arte{background-image:url('assets/brand/arte-divino-approved-transparent.png');background-size:min(42vw,430px) auto;filter:brightness(0) invert(1) drop-shadow(0 4px 16px rgba(0,0,0,.18));opacity:0;animation:v5OpeningArte 2.85s ease both}
