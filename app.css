@@ -412,7 +412,7 @@ body:has(.super-foozi-chat.open) .super-foozi-launcher{filter:drop-shadow(0 0 20
   contain:paint!important;
 }
 .v5-shell .drawer-edge-toggle{
-  top:17px!important;
+  top:15px!important;
   width:66px!important;
   height:78px!important;
   border:0!important;
@@ -633,4 +633,20 @@ body.v5-shell .topbar .page-refresh-button.is-refreshing svg{
 @media(max-width:760px){
   body.v5-shell .topbar .page-refresh-button{right:68px!important}
   body.v5-shell .topbar .welcome{right:116px!important}
+}
+
+/* V5.0.30 — identical menu-line coordinates in both drawer states. */
+.v5-shell .drawer-menu-lines::before,
+.v5-shell .drawer-edge-toggle.drawer-open .drawer-menu-lines::before,
+body:has(.sidebar.open) .drawer-edge-toggle .drawer-menu-lines::before{
+  top:15px!important;
+}
+body.v5-shell .topbar .page-refresh-button{
+  z-index:12!important;
+  pointer-events:auto!important;
+  touch-action:manipulation!important;
+}
+body.v5-shell .topbar .welcome{
+  z-index:2!important;
+  pointer-events:none!important;
 }
