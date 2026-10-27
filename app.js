@@ -1185,6 +1185,8 @@ function v5FinalizeDrawer_(){
   let toggle=document.querySelector('#drawerEdgeToggle');
   if(!toggle){side.insertAdjacentHTML('afterend','<button id="drawerEdgeToggle" class="drawer-edge-toggle" type="button" aria-label="فتح أو إغلاق القائمة" aria-expanded="false"><span class="drawer-menu-lines" aria-hidden="true">☰</span></button>');toggle=document.querySelector('#drawerEdgeToggle')}
   toggle.setAttribute('aria-expanded',String(side.classList.contains('open')));
+  toggle.disabled=false;
+  toggle.removeAttribute('disabled');
   toggle.classList.toggle('drawer-open',side.classList.contains('open'));
   toggle.onclick=()=>setSidebar(!side.classList.contains('open'));
   const launcher=document.querySelector('#superFooziLauncher'),lang=top?.querySelector('#lang')||side.querySelector('#lang'),logout=top?.querySelector('#logout')||side.querySelector('#logout');

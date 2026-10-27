@@ -663,6 +663,7 @@ body.v5-shell .topbar .welcome{
 /* V5.0.35 — clean clickable drawer edge, restored drawer footer, approved splash. */
 .v5-shell .drawer-menu-lines{display:none!important}
 .v5-shell .drawer-edge-toggle{cursor:pointer!important}
+.v5-shell .drawer-edge-toggle{pointer-events:auto!important;z-index:100!important}
 .v5-shell .drawer-edge-toggle:hover{filter:drop-shadow(0 0 7px rgba(58,239,210,.42))!important}
 .v5-shell .sidebar{overflow:hidden!important}
 .v5-shell .nav{
