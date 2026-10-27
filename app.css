@@ -699,3 +699,34 @@ body.v5-shell .topbar .welcome{
 @media(max-height:820px){
   .v5-shell .super-foozi-launcher{width:142px!important;height:184px!important;min-height:184px!important;flex-basis:184px!important}
 }
+
+/* V5.0.37 — the sole internal loading indicator is centered in the white top bar. */
+.v5-shell .topbar::after{content:none!important}
+body:has(.view-loading).v5-shell .topbar::after{
+  content:'Loading'!important;
+  position:absolute!important;
+  left:50%!important;
+  right:auto!important;
+  top:50%!important;
+  bottom:auto!important;
+  width:auto!important;
+  height:auto!important;
+  transform:translate(-50%,-50%)!important;
+  background:none!important;
+  color:#087f70!important;
+  font:700 14px/1 'Segoe UI',Tahoma,sans-serif!important;
+  letter-spacing:.08em!important;
+  opacity:1!important;
+  pointer-events:none!important;
+  animation:v5TopbarLoadingPulse .82s ease-in-out infinite alternate!important;
+  text-shadow:0 0 4px rgba(8,127,112,.18)!important;
+}
+body:has(.view-loading) .content>*:not(.view-loading){filter:none!important;opacity:1!important;pointer-events:auto!important}
+body:has(.view-loading) .sidebar.open .v5-foozix-mark,
+body:has(.view-loading) .sidebar:before,
+body:has(.view-loading) .content:before{animation:none!important;filter:none!important}
+@keyframes v5TopbarLoadingPulse{
+  from{opacity:.42;text-shadow:0 0 2px rgba(8,127,112,.16)}
+  to{opacity:1;text-shadow:0 0 11px rgba(8,127,112,.5)}
+}
+@media(prefers-reduced-motion:reduce){body:has(.view-loading).v5-shell .topbar::after{animation:none!important;opacity:1!important}}
