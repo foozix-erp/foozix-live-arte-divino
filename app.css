@@ -730,3 +730,4 @@ body:has(.view-loading) .content:before{animation:none!important;filter:none!imp
   to{opacity:1;text-shadow:0 0 11px rgba(8,127,112,.5)}
 }
 @media(prefers-reduced-motion:reduce){body:has(.view-loading).v5-shell .topbar::after{animation:none!important;opacity:1!important}}
+.direct-client-flag{white-space:nowrap;text-align:center;font-weight:800;color:#007d70}
