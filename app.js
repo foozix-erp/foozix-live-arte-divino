@@ -998,8 +998,16 @@ window.addEventListener('submit',async event=>{const form=event.target;if(form.g
 // Preserve the existing editing controls while separating cash from work charges.
 // Preserve the existing editing controls while separating cash from work charges.
 const financialDetailBase_=detailTable_;
+function orderCustomerReceiptsBySource_(rows){
+  return [...rows].sort((a,b)=>{
+    const x=Number(a.migrationSourceOrder),y=Number(b.migrationSourceOrder),hasX=a.migrationSourceOrder!==null&&a.migrationSourceOrder!==undefined,hasY=b.migrationSourceOrder!==null&&b.migrationSourceOrder!==undefined;
+    if(hasX&&hasY)return x-y;
+    if(hasX!==hasY)return hasX?-1:1;
+    return String(a.transactionDate||'').localeCompare(String(b.transactionDate||''))||String(a.transactionId||'').localeCompare(String(b.transactionId||''));
+  });
+}
 detailTable_=function(report){
-  const ar=state.lang==='ar',cash=(report.statement||[]).filter(x=>['CUSTOMER_RECEIPT','CUSTOMER_REFUND'].includes(x.type));
+  const ar=state.lang==='ar',cash=orderCustomerReceiptsBySource_((report.statement||[]).filter(x=>['CUSTOMER_RECEIPT','CUSTOMER_REFUND'].includes(x.type)));
   const direct=(report.statement||[]).filter(x=>x.type==='CUSTOMER_DIRECT_PAYMENT');
   const work=(report.statement||[]).filter(x=>!['CUSTOMER_RECEIPT','CUSTOMER_REFUND'].includes(x.type));
   const notes=!!state.reportOptions?.showInternalNotes,editable=canAction('transactions','edit');
