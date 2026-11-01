@@ -1016,7 +1016,7 @@ detailTable_=function(report){
   return payments+directSummary+`<h2>${ar?'تفاصيل الأعمال والمصروفات والمرتجعات':'Work, expenses and purchase returns'}</h2>`+financialDetailBase_({...report,statement:work});
 };
 
-const CLIENT_BUILD_='5.0.0';
+const CLIENT_BUILD_='5.0.3';
 let financialRevision_=null,financialRefreshBusy_=false,financialStale_=false,financialVersionMismatch_=false,financialRefreshFailed_=false,financialReadAt_='',financialAutoRefreshTimer_=0;
 const financialReadViews_=new Set(['dashboard','projects','finance','reports','parties','tasks','clients','employees','loans','assets','audit']);
 const financialDirtyForms_=new WeakSet();
@@ -1222,3 +1222,58 @@ document.addEventListener('click',event=>{
   if(toggle){event.preventDefault();event.stopPropagation();setSidebar(!document.querySelector('.sidebar')?.classList.contains('open'));return;}
   if(event.target.closest('.v5-drawer-close,.sidebar-backdrop')){event.preventDefault();setSidebar(false);}
 },true);
+
+// Release 5.0.3: one stable report request, explicit direct-client funding,
+// and client-safe printing without changing the underlying accounting data.
+const v503TxFieldsBase_=txDynamicFields;
+txDynamicFields=function(type){
+  const html=v503TxFieldsBase_(type);
+  if(type!=='PROJECT_EXPENSE')return html;
+  const direct=`<label class="check-line direct-client-create-field"><input name="directClientPayment" type="checkbox"><span>${state.lang==='ar'?'دفع مباشر من العميل':'Paid directly by client'}</span></label>`;
+  return html.replace(/(<label class="field">(?:المبلغ|Amount)<input name="amount"[\s\S]*?<\/label>)/,'$1'+direct);
+};
+
+async function v503SubmitSmartTx_(form){
+  const payload=obj(form),file=document.querySelector('#evidence')?.files?.[0];
+  if(payload.type==='PROJECT_EXPENSE'&&payload.directClientPayment===true){payload.type='CUSTOMER_DIRECT_PAYMENT';payload.fundingMethod='DIRECT_CLIENT';payload.sourceAccountId='';payload.targetAccountId='';payload.paymentMethod=''}
+  delete payload.directClientPayment;
+  if(file){const data=await new Promise((ok,bad)=>{const reader=new FileReader();reader.onload=()=>ok(String(reader.result).split(',')[1]);reader.onerror=bad;reader.readAsDataURL(file)});const uploaded=await api('document.upload',{name:file.name,mimeType:file.type,base64:data});if(!uploaded.ok)throw new Error(msg(uploaded));payload.documentId=uploaded.data['معرف المستند']}
+  payload.idempotencyKey=form.dataset.requestKey||(form.dataset.requestKey=crypto.randomUUID());payload.source='APPS_SCRIPT_WEB';
+  const response=await api('transaction.createAndSubmit',payload);
+  if(!response.ok){if(response.code==='POTENTIAL_DUPLICATE')document.querySelector('#duplicateConfirm')?.classList.remove('hidden');if(response.code==='AGREEMENT_LIMIT_EXCEEDED')document.querySelector('#agreementOverrun')?.classList.remove('hidden');throw new Error(msg(response))}
+  state.notice={type:'ok',text:t('success')};await load();render();
+}
+document.addEventListener('submit',event=>{const form=event.target;if(form?.id!=='tx'||!form.elements.directClientPayment)return;event.preventDefault();event.stopImmediatePropagation();v503SubmitSmartTx_(form).catch(fail)},true);
+
+const v503EditObserver_=new MutationObserver(()=>{
+  document.querySelectorAll('dialog input[name="directClientPayment"]:not([data-v503])').forEach(input=>{
+    const original=String(input.value||'').toLowerCase();input.type='checkbox';input.checked=['true','1','yes','نعم'].includes(original);input.dataset.v503='1';
+    const label=input.closest('label'),amount=document.querySelector('dialog input[name="amount"]')?.closest('label');label?.classList.add('direct-client-edit-field');amount?.after(label);
+  });
+});
+v503EditObserver_.observe(document.body,{childList:true,subtree:true});
+
+let v503ReportRequest_=null;
+async function v503LoadProjectReport_(mode){
+  if(v503ReportRequest_)return v503ReportRequest_;
+  const projectId=document.querySelector('[name=reportProject]')?.value||state.data.reportProjectId;if(!projectId)return;
+  state.data.reportProjectId=projectId;
+  v503ReportRequest_=(async()=>{const response=await api('report.project',{projectId});if(!response.ok)throw new Error(msg(response));state.data.projectReport=response.data;state.data.reportMode=mode;render()})().finally(()=>{v503ReportRequest_=null});
+  return v503ReportRequest_;
+}
+document.addEventListener('click',event=>{const button=event.target.closest('#summaryReport,#detailReport');if(!button)return;event.preventDefault();event.stopImmediatePropagation();v503LoadProjectReport_(button.id==='detailReport'?'detail':'summary').catch(fail)},true);
+
+const v503DetailTableBase_=detailTable_;
+detailTable_=function(report){
+  const template=document.createElement('template');template.innerHTML=v503DetailTableBase_(report);
+  const optionPanel=template.content.querySelector('.report-options');
+  if(optionPanel&&!optionPanel.querySelector('#reportInternalCopy'))optionPanel.insertAdjacentHTML('beforeend',`<label class="check-line"><input id="reportInternalCopy" type="checkbox" ${document.body.classList.contains('internal-report-copy')?'checked':''}><span>${state.lang==='ar'?'نسخة داخلية: إظهار قيم البنود على حساب الشركة في الطباعة':'Internal copy: show company-account values in print'}</span></label>`);
+  const work=(report.statement||[]).filter(x=>!['CUSTOMER_RECEIPT','CUSTOMER_REFUND'].includes(x.type));
+  const tables=[...template.content.querySelectorAll('.report-table table')],table=tables[tables.length-1],headers=table?[...table.querySelectorAll('thead th')].map(x=>x.textContent.trim()):[];
+  const moneyIndexes=headers.map((h,i)=>(['القيمة','Amount','قيمة النسبة','Markup value','قيمة العميل','Client value'].includes(h)?i:-1)).filter(i=>i>=0);
+  table?.querySelectorAll('tbody tr').forEach((row,index)=>{if(!work[index]?.companyBears)return;row.classList.add('company-account-row');moneyIndexes.forEach(i=>row.children[i]?.classList.add('company-print-amount'))});
+  return template.innerHTML;
+};
+document.addEventListener('change',event=>{if(event.target.id==='reportInternalCopy')document.body.classList.toggle('internal-report-copy',event.target.checked)},true);
+window.addEventListener('beforeprint',()=>document.body.classList.toggle('internal-report-copy',document.querySelector('#reportInternalCopy')?.checked===true));
+window.addEventListener('afterprint',()=>document.body.classList.remove('internal-report-copy'));

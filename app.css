@@ -731,3 +731,15 @@ body:has(.view-loading) .content:before{animation:none!important;filter:none!imp
 }
 @media(prefers-reduced-motion:reduce){body:has(.view-loading).v5-shell .topbar::after{animation:none!important;opacity:1!important}}
 .direct-client-flag{white-space:nowrap;text-align:center;font-weight:800;color:#007d70}
+
+/* V5.0.41 — client print hides company-funded values while the screen and
+   explicitly selected internal copy keep the original amounts. */
+.print-dash{display:none}.screen-money{display:inline}
+@media print{
+  body:not(.internal-report-copy) .company-account-row .company-print-amount{font-size:0!important;color:transparent!important}
+  body:not(.internal-report-copy) .company-account-row .company-print-amount .screen-money{display:none!important}
+  body:not(.internal-report-copy) .company-account-row .company-print-amount .print-dash{display:inline!important;color:#111!important;font-size:8pt!important}
+  body:not(.internal-report-copy) .company-account-row .company-print-amount::after{content:'—';display:inline!important;color:#111!important;font-size:8pt!important}
+  body:not(.internal-report-copy) .company-account-row .company-print-amount:has(.print-dash)::after{content:''}
+  .company-account-row .company-tag{display:inline-block!important}
+}
