@@ -695,6 +695,8 @@ body.v5-shell .topbar .welcome{
   background-size:contain!important;
   background-repeat:no-repeat!important;
 }
+.v5-splash>.splash-circuit-field,
+.v5-splash>.v5-splash-brand{display:none!important}
 .v5-splash-f,.v5-splash-arte{display:none!important;animation:none!important}
 @media(max-height:820px){
   .v5-shell .super-foozi-launcher{width:142px!important;height:184px!important;min-height:184px!important;flex-basis:184px!important}
