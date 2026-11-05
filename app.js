@@ -245,12 +245,21 @@ const baseLoad=load;load=async function(){await baseLoad();if(state.view==='part
 // Customer refunds reduce the project's aggregate customer advances. They do
 // not have to be tied to one historic receipt unless the user is explicitly
 // reversing that exact receipt.
-const txFormAggregateRefundBase_=txForm;
-txForm=function(){
+const txFormAggregateRefundBase_=txFormSmart;
+txFormSmart=function(){
   const html=txFormAggregateRefundBase_();
   if(!canAction('transactions','create')||html.includes('value="CUSTOMER_REFUND"'))return html;
   const option=`<option value="CUSTOMER_REFUND">${state.lang==='ar'?'رد مبلغ للعميل':'Customer refund'}</option>`;
-  return html.replace('<option value="SUPPLIER_PAYMENT"',option+'<option value="SUPPLIER_PAYMENT"');
+  return html.replace(/(<option value="CUSTOMER_RECEIPT"[^>]*>[\s\S]*?<\/option>)/,'$1'+option);
+};
+const txDynamicFieldsAggregateRefundBase_=txDynamicFields;
+txDynamicFields=function(type){
+  if(type!=='CUSTOMER_REFUND')return txDynamicFieldsAggregateRefundBase_(type);
+  const projects=state.data.projects||[],clients=state.data.clients||[];
+  const client=txSelectSmart('clientId',t('client'),clients,'معرف العميل','client-field');
+  const project=txSelectSmart('projectId',t('project'),projects,'معرف المشروع','project-field');
+  const description=`<label class="field field-wide">${t('description')}<input name="description" required></label>`;
+  return `${client}${project}${txPayment('out')}${txAmountAndTail(description)}`;
 };
 
 // Capture supplier capabilities before the generic master submit listener
@@ -1153,7 +1162,7 @@ window.addEventListener('afterprint',restoreCompanyPrintAmounts_);
 
 const txDynamicFieldsEmployeeBase_=txDynamicFields;
 txDynamicFields=function(type){const html=txDynamicFieldsEmployeeBase_(type);return type==='PAYROLL_PAYMENT'?txSelectSmart('employeeId',t('employee'),state.data.employees||[],'معرف الموظف')+html:html};
-const CLIENT_BUILD_='5.0.5';
+const CLIENT_BUILD_='5.0.6';
 let financialRevision_=null,financialRefreshBusy_=false,financialStale_=false,financialVersionMismatch_=false,financialRefreshFailed_=false,financialReadAt_='',financialAutoRefreshTimer_=0;
 const financialReadViews_=new Set(['dashboard','projects','finance','reports','parties','tasks','clients','employees','loans','assets','audit']);
 const financialDirtyForms_=new WeakSet();
