@@ -614,21 +614,6 @@ function installCashControls_(){
 }
 document.addEventListener('DOMContentLoaded',()=>{installDropdowns_();installEditingControls_();installCashControls_()});
 
-// Transaction lookup data arrives with view.load. Changing type must not make a
-// second round trip or lose the selection when a late navigation render ends.
-const txFieldsWithPreloadedLookups_=txDynamicFields;
-const txDependenciesWithPreloadedLookups_=updateSmartTxDependencies;
-function withTransactionAgreements_(fn){const previous=state.data.agreements;state.data.agreements=state.data.transactionAgreements||[];try{return fn()}finally{state.data.agreements=previous}}
-txDynamicFields=function(type){return withTransactionAgreements_(()=>txFieldsWithPreloadedLookups_(type))};
-updateSmartTxDependencies=function(){return withTransactionAgreements_(()=>txDependenciesWithPreloadedLookups_())};
-document.addEventListener('change',event=>{
-  const select=event.target,form=select.closest?.('#tx');if(!form||select.name!=='type')return;
-  event.stopImmediatePropagation();document.querySelector('#txDynamic').innerHTML=txDynamicFields(select.value);
-  document.querySelector('#txSubmit').classList.toggle('hidden',!select.value);
-  form.onsubmit=async e=>{e.preventDefault();try{await submitSmartTx(form)}catch(error){fail(error)}};
-  updateSmartTxDependencies();
-},true);
-
 // Every API failure must have a human-readable message.  A missing formatter
 // previously turned a genuine validation response into the misleading browser
 // error "msg is not defined" in the edit dialog.
@@ -1162,7 +1147,7 @@ window.addEventListener('afterprint',restoreCompanyPrintAmounts_);
 
 const txDynamicFieldsEmployeeBase_=txDynamicFields;
 txDynamicFields=function(type){const html=txDynamicFieldsEmployeeBase_(type);return type==='PAYROLL_PAYMENT'?txSelectSmart('employeeId',t('employee'),state.data.employees||[],'معرف الموظف')+html:html};
-const CLIENT_BUILD_='5.0.6';
+const CLIENT_BUILD_='5.0.7';
 let financialRevision_=null,financialRefreshBusy_=false,financialStale_=false,financialVersionMismatch_=false,financialRefreshFailed_=false,financialReadAt_='',financialAutoRefreshTimer_=0;
 const financialReadViews_=new Set(['dashboard','projects','finance','reports','parties','tasks','clients','employees','loans','assets','audit']);
 const financialDirtyForms_=new WeakSet();
