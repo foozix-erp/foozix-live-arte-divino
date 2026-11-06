@@ -1330,6 +1330,7 @@ const txDynamicFieldsExpenseBase_=txDynamicFields;
 txDynamicFields=function(type){if(type==='OPERATING_EXPENSE'){const desc=`<label class="field field-wide">${t('description')}<input name="description"></label>`;return `${txOperatingExpenseFields()}${desc}${txPayment('out')}${txTaxFields()}${txAmountAndTail()}`}return txDynamicFieldsExpenseBase_(type)};
 const mountSuperFooziProfileBase_=mountSuperFoozi_;
 mountSuperFoozi_=function(){if(!state.profile){document.querySelector('#superFooziLauncher')?.remove();document.querySelector('#superFooziChat')?.remove();document.querySelector('#superFooziShade')?.remove();return}return mountSuperFooziProfileBase_()};
+mountSuperFoozi_();
 function v5FinalizeDrawer_(){
   const side=document.querySelector('.sidebar'),nav=side?.querySelector('.nav'),top=document.querySelector('.topbar');
   if(!side||!nav||!state.profile)return;
