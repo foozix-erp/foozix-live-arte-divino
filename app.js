@@ -113,17 +113,28 @@ function helpCard_(topic){const title=state.lang==='ar'?topic.titleAr:topic.titl
 function renderHelpResults_(query=''){const box=document.querySelector('#helpResults');if(!box)return;const rows=helpResults_(query);box.innerHTML=rows.length?rows.map(helpCard_).join(''):`<div class="empty">${state.lang==='ar'?'لم أجد نتيجة مطابقة. جرّب وصف المهمة بكلمات أخرى.':'No matching result. Try describing the task differently.'}</div>`}
 function openHelp_(){const center=document.querySelector('#helpCenter');center?.classList.add('open');center?.setAttribute('aria-hidden','false');document.querySelector('#helpSearch')?.focus();renderHelpResults_('')}
 function closeHelp_(){const center=document.querySelector('#helpCenter');center?.classList.remove('open');center?.setAttribute('aria-hidden','true');document.querySelector('#helpOpen')?.focus()}
-let actionButton_=null,actionButtonDepth_=0;
-function beginActionButton_(){const button=actionButton_;if(!button||!button.isConnected)return null;actionButtonDepth_++;button.classList.add('is-loading');button.disabled=true;button.setAttribute('aria-busy','true');return button}
-function endActionButton_(button){if(!button)return;actionButtonDepth_=Math.max(0,actionButtonDepth_-1);if(actionButtonDepth_)return;button.classList.remove('is-loading');button.disabled=false;button.removeAttribute('aria-busy')}
-document.addEventListener('click',event=>{const button=event.target.closest('button');actionButton_=button&&button.closest('#app')&&!button.closest('.nav,.topbar')?button:null},true);
-document.addEventListener('submit',event=>{const button=event.submitter||event.target.querySelector('button[type="submit"],button:not([type])');if(button)actionButton_=button},true);
+let actionButton_=null;
+const actionButtonStates_=new WeakMap();
+function beginActionButton_(button=actionButton_){
+  if(!button||!button.isConnected)return null;
+  const entry=actionButtonStates_.get(button)||{depth:0,disabled:button.disabled};
+  entry.depth++;actionButtonStates_.set(button,entry);
+  button.classList.add('is-loading');button.disabled=true;button.setAttribute('aria-busy','true');return button;
+}
+function endActionButton_(button){
+  const entry=button&&actionButtonStates_.get(button);if(!entry)return;
+  if(--entry.depth>0)return;
+  actionButtonStates_.delete(button);button.classList.remove('is-loading');button.disabled=entry.disabled;button.removeAttribute('aria-busy');
+}
+function captureActionButton_(button){actionButton_=button;setTimeout(()=>{if(actionButton_===button)actionButton_=null},0)}
+document.addEventListener('click',event=>{const button=event.target.closest('button');captureActionButton_(button&&button.closest('#app')&&!button.closest('.nav,.topbar')?button:null)},true);
+document.addEventListener('submit',event=>{const button=event.submitter||event.target.querySelector('button[type="submit"],button:not([type])');if(button)captureActionButton_(button)},true);
 const pendingReads_=new Map();
 let api=(action,payload={})=>{
   const readOnly=/^(app\.(bootstrap|freshness)|view\.load|profile|report\.|accounting\.|finance\.(dashboard|statements)|notification\.list|agreement\.list)/.test(action);
   const request={action,payload,sessionToken:sessionToken_()},key=JSON.stringify(request);
   if(readOnly&&pendingReads_.has(key))return pendingReads_.get(key);
-  const busyButton=beginActionButton_();
+  const busyButton=readOnly?null:beginActionButton_();
   const send=()=>new Promise((resolve,reject)=>{
     let settled=false;const controller=new AbortController();
     const finish=(fn,value)=>{if(settled)return;settled=true;clearTimeout(timer);fn(value)};
@@ -338,8 +349,12 @@ updateSmartTxDependencies=function(){
   }else if(f.paymentMethod?.value==='DIRECT_CLIENT')f.paymentMethod.value='';
 };
 submitSmartTx=async function(f){
-  const p=obj(f),file=document.querySelector('#evidence')?.files?.[0];
+  if(f.dataset.submitting==='true'||f.dataset.saved==='true')return;
+  f.dataset.submitting='true';
+  const busyButton=beginActionButton_(f.querySelector('#txSubmit'));
+  let saved=false;
   try{
+    const p=obj(f),file=f.querySelector('#evidence')?.files?.[0];
     if(p.type==='PROJECT_EXPENSE'&&p.directClientPayment===true){
       p.type='CUSTOMER_DIRECT_PAYMENT';
       p.paymentMethod='DIRECT_CLIENT';
@@ -363,14 +378,27 @@ submitSmartTx=async function(f){
       if(r.code==='AGREEMENT_LIMIT_EXCEEDED'){document.querySelector('#agreementOverrun')?.classList.remove('hidden');throw new Error(state.lang==='ar'?r.messageAr:r.messageEn)}
       throw new Error(state.lang==='ar'?r.messageAr:r.messageEn);
     }
+    saved=true;
+    f.dataset.saved='true';
     state.notice={type:'ok',text:t('success')};
     await load();
     render();
   }catch(e){
-    const n=document.querySelector('.notice');
-    if(n){n.className='notice error';n.textContent=e.message}else alert(e.message);
+    const text=saved?(state.lang==='ar'?'تم تسجيل الحركة، لكن تعذر تحديث العرض. حدّث الصفحة للتحقق؛ لا تعِد التسجيل.':'Transaction saved, but refresh failed. Refresh the page to verify; do not resubmit.'):e.message;
+    let n=f.querySelector('.tx-submit-notice');
+    if(!n){n=document.createElement('div');n.className='notice error tx-submit-notice';n.setAttribute('role','alert');f.prepend(n)}
+    n.textContent=text;
+  }finally{
+    delete f.dataset.submitting;
+    endActionButton_(busyButton);
+    if(saved&&busyButton)busyButton.disabled=true;
   }
 };
+document.addEventListener('submit',event=>{
+  if(event.target.getAttribute('id')!=='tx')return;
+  event.preventDefault();event.stopImmediatePropagation();
+  submitSmartTx(event.target);
+},true);
 document.addEventListener('change',e=>{const f=e.target.form;if(f?.id!=='tx'||f.type?.value!=='PROJECT_INVOICE'||!['clientId','projectId'].includes(e.target.name))return;if(f.projectId){const selected=f.projectId.value,clientId=f.clientId?.value,options=(state.data.projects||[]).filter(p=>!clientId||String(p['معرف العميل'])===String(clientId));f.projectId.innerHTML=txOptions(options,'معرف المشروع',selected)}});
 const projectFormOriginal=projectForm;
 projectForm=function(){return projectFormOriginal().replace('</div><button class="primary">',`<label class="field">${state.lang==='ar'?'المعاملة الضريبية':'Tax treatment'}<select name="المعاملة الضريبية" required><option value="NON_TAXABLE">${state.lang==='ar'?'غير ضريبي':'Non-taxable'}</option><option value="TAXABLE">${state.lang==='ar'?'ضريبي':'Taxable'}</option></select></label><div class="project-tax-fields hidden field-wide"><div class="form-grid"><label class="field">${state.lang==='ar'?'نسبة الضريبة الافتراضية %':'Default tax rate %'}<input name="نسبة الضريبة الافتراضية" type="number" value="0" min="0" max="100" step=".01"></label><label class="check-line"><input name="يتطلب فاتورة ضريبية" type="checkbox"><span>${state.lang==='ar'?'يتطلب فاتورة ضريبية':'Tax invoice required'}</span></label></div></div></div><button class="primary">`)};
