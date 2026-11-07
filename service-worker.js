@@ -1,4 +1,4 @@
-const CACHE='foozix-live-5.0.53-workspace-tabs';
+const CACHE='foozix-live-5.0.54-workspace-tabs';
 const SHELL=['./','./index.html','./app.css','./app.js','./manifest.webmanifest','./icon-192.png','./icon-512.png','./icon-maskable-512.png','./assets/brand/arte-divino-approved-transparent.png','./assets/brand/foozix-f-approved-transparent.png','./assets/brand/sidebar-circuit-background-approved.png','./assets/brand/sidebar-circuit-background-transparent.png','./assets/brand/opening-screen-circuit-background-approved.png','./assets/brand/arte-divino-opening-approved.png','./assets/brand/super-foozi-transparent-v2.png','./assets/profiles/khaled.png','./assets/profiles/sherif.png'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL.map(url=>new Request(url,{cache:'reload'})))).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));
@@ -19,3 +19,4 @@ self.addEventListener('fetch',event=>{
     if(response.ok){const copy=response.clone();caches.open(CACHE).then(cache=>cache.put(event.request,copy))}return response;
   })));
 });
+
