@@ -1342,3 +1342,33 @@ function v5AlertMarkup_(){const ar=state.lang==='ar',alerts=(state.data.alerts||
 function v5EnhanceShell_(){const top=document.querySelector('.topbar'),side=document.querySelector('.sidebar');if(!top||!side||!state.profile)return;document.body.classList.add('v5-shell');document.body.dataset.view=state.view;const name=state.lang==='ar'?(state.profile.nameAr||state.profile.nameEn):(state.profile.nameEn||state.profile.nameAr),photo=v5ProfileImage_();if(!top.querySelector('.v5-profile'))top.insertAdjacentHTML('afterbegin',`<button class="v5-profile" type="button" title="${state.lang==='ar'?'تحديث صورة الحساب':'Update account photo'}"><span class="v5-avatar">${photo?`<img src="${photo}" alt="">`:`<i>${esc(String(name||'?').slice(0,1))}</i>`}<em>⌁</em></span><span><b>${esc(name||'')}</b><small>${esc(v5ProfileTitle_())}</small></span></button>`);if(!top.querySelector('.v5-bell'))top.insertAdjacentHTML('beforeend',`<button class="v5-bell" type="button" aria-label="${state.lang==='ar'?'الإشعارات':'Notifications'}">♧<span>${(state.data.alerts||[]).length}</span></button>`);if(!side.querySelector('.v5-drawer-close'))side.insertAdjacentHTML('afterbegin','<button class="v5-drawer-close" type="button" aria-label="إغلاق">×</button>');side.querySelector('.brand-logo')?.setAttribute('src','https://foozix-erp.github.io/foozix-live-arte-divino/assets/brand/arte-divino-logo-transparent-v2.png');const brand=side.querySelector('.sidebar-brand');if(brand&&!brand.querySelector('.v5-foozix-mark'))brand.insertAdjacentHTML('beforeend','<span class="v5-foozix-mark" aria-label="FOOZIX"></span><small class="v5-powered">Powered by FOOZIX</small>');const launcher=document.querySelector('#superFooziLauncher'),anchor=launcher?.parentElement===side?launcher:null;[top.querySelector('#lang'),top.querySelector('#logout')].filter(Boolean).forEach(button=>{button.classList.add('v5-drawer-action');side.insertBefore(button,anchor)});if(launcher&&launcher.parentElement!==side)side.appendChild(launcher);const old=[...document.querySelectorAll('.content>.panel')].find(x=>x.querySelector('h2')?.textContent.includes(state.lang==='ar'?'تنبيهات المشروعات':'Project alerts'));if(old){const fresh=document.createElement('div');fresh.innerHTML=v5AlertMarkup_();old.replaceWith(fresh.firstElementChild)}top.querySelector('.v5-profile').onclick=()=>top.querySelector('.v5-profile-file')?.click();if(!top.querySelector('.v5-profile-file')){const input=document.createElement('input');input.type='file';input.accept='image/*';input.className='v5-profile-file';input.hidden=true;input.onchange=()=>{if(!input.files?.[0])return;const url=URL.createObjectURL(input.files[0]),img=top.querySelector('.v5-avatar img');if(img)img.src=url};top.append(input)}side.querySelector('.v5-drawer-close').onclick=()=>setSidebar(false);document.querySelectorAll('[data-alert-project]').forEach(b=>b.onclick=()=>{state.dashboardFilter={...(state.dashboardFilter||{}),project:b.dataset.alertProject};openView('projects')})}
 const v5ShellRenderBase_=render;render=function(){v5ShellRenderBase_();v5EnhanceShell_()};
 v5EnhanceShell_();
+
+
+// Keep the smart operating-expense fields complete even when cached master data
+// is incomplete, and preserve the approved authenticated drawer behavior.
+const txDynamicFieldsExpenseBase_=txDynamicFields;
+txDynamicFields=function(type){if(type==='OPERATING_EXPENSE'){const desc=`<label class="field field-wide">${t('description')}<input name="description"></label>`;return `${txOperatingExpenseFields()}${desc}${txPayment('out')}${txTaxFields()}${txAmountAndTail()}`}return txDynamicFieldsExpenseBase_(type)};
+const mountSuperFooziProfileBase_=mountSuperFoozi_;
+mountSuperFoozi_=function(){if(!state.profile){document.querySelector('#superFooziLauncher')?.remove();document.querySelector('#superFooziChat')?.remove();document.querySelector('#superFooziShade')?.remove();return}return mountSuperFooziProfileBase_()};
+mountSuperFoozi_();
+function v5FinalizeDrawer_(){
+  const side=document.querySelector('.sidebar'),nav=side?.querySelector('.nav'),top=document.querySelector('.topbar');
+  if(!side||!nav||!state.profile)return;
+  side.querySelector('.v5-drawer-close')?.remove();
+  top?.querySelector('#menuToggle')?.setAttribute('aria-hidden','true');
+  let toggle=document.querySelector('#drawerEdgeToggle');
+  if(!toggle){side.insertAdjacentHTML('afterend','<button id="drawerEdgeToggle" class="drawer-edge-toggle" type="button" aria-label="فتح أو إغلاق القائمة" aria-expanded="false"></button>');toggle=document.querySelector('#drawerEdgeToggle')}
+  toggle.disabled=false;toggle.removeAttribute('disabled');
+  toggle.setAttribute('aria-expanded',String(side.classList.contains('open')));toggle.classList.toggle('drawer-open',side.classList.contains('open'));
+  toggle.onclick=()=>setSidebar(!side.classList.contains('open'));
+  const launcher=document.querySelector('#superFooziLauncher'),lang=top?.querySelector('#lang')||side.querySelector('#lang'),logout=top?.querySelector('#logout')||side.querySelector('#logout');
+  if(launcher&&launcher.parentElement!==nav)nav.appendChild(launcher);
+  let actions=nav.querySelector('.v5-drawer-actions');if(!actions){actions=document.createElement('div');actions.className='v5-drawer-actions';nav.appendChild(actions)}
+  [lang,logout].filter(Boolean).forEach(button=>{button.classList.add('v5-drawer-action');actions.appendChild(button)});
+  const mark=side.querySelector('.v5-foozix-mark'),powered=side.querySelector('.v5-powered');if(powered)powered.innerHTML='Powered by <b>FOOZIX</b>';
+  if(mark&&powered&&!mark.parentElement.classList.contains('v5-foozix-lockup')){const lockup=document.createElement('span');lockup.className='v5-foozix-lockup';mark.before(lockup);lockup.append(mark,powered)}
+  const avatar=top?.querySelector('.v5-avatar i'),name=state.lang==='ar'?(state.profile?.nameAr||state.profile?.nameEn):(state.profile?.nameEn||state.profile?.nameAr);
+  if(avatar&&name)avatar.textContent=String(name).trim().split(/\s+/).slice(0,2).map(x=>x[0]).join('');
+}
+const v5DrawerRenderBase_=render;render=function(){v5DrawerRenderBase_();v5FinalizeDrawer_()};v5FinalizeDrawer_();
+document.addEventListener('click',event=>{const toggle=event.target.closest('#menuToggle,#drawerEdgeToggle');if(toggle){event.preventDefault();event.stopPropagation();setSidebar(!document.querySelector('.sidebar')?.classList.contains('open'));return}if(event.target.closest('.sidebar-backdrop')){event.preventDefault();setSidebar(false)}},true);
