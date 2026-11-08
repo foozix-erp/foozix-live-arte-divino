@@ -1429,9 +1429,9 @@ function superFooziFloating_(){
  const minimize=()=>{if(!chat.classList.contains('open'))return;minimized=true;chat.classList.remove('open');shade.classList.remove('open');launcher.classList.add('active');launcher.setAttribute('aria-expanded','false')};
  const restore=()=>{minimized=false;chat.classList.add('open');shade.classList.remove('open');launcher.classList.add('active');document.body.appendChild(launcher);launcher.setAttribute('aria-expanded','true');place()};
  launcher.onclick=e=>{if(dragged){dragged=false;return}if(minimized)return restore();if(chat.classList.contains('open'))return minimize();original?.call(launcher,e);shade.classList.remove('open');place()};
- const button=document.createElement('button');button.type='button';button.className='super-foozi-minimize';button.textContent='−';button.setAttribute('aria-label',state.lang==='ar'?'تصغير مع الاحتفاظ بالمحادثة':'Minimize and keep conversation');button.onclick=minimize;chat.prepend(button);
- launcher.onpointerdown=e=>{if(e.button!==0)return;const r=launcher.getBoundingClientRect();origin={x:e.clientX,y:e.clientY,left:r.left,top:r.top};dragged=false;launcher.setPointerCapture(e.pointerId)};
- launcher.onpointermove=e=>{if(!origin)return;const dx=e.clientX-origin.x,dy=e.clientY-origin.y;if(Math.hypot(dx,dy)<6&&!dragged)return;dragged=true;document.body.appendChild(launcher);position={x:origin.left+dx,y:origin.top+dy};place()};
+ chat.querySelectorAll('.super-foozi-minimize').forEach(x=>x.remove());const button=document.createElement('button');button.type='button';button.className='super-foozi-minimize';button.textContent='−';button.setAttribute('aria-label',state.lang==='ar'?'تصغير مع الاحتفاظ بالمحادثة':'Minimize and keep conversation');button.onclick=minimize;chat.prepend(button);
+ launcher.onpointerdown=e=>{if(e.button!==0)return;const r=launcher.getBoundingClientRect();origin={x:e.clientX,y:e.clientY,left:r.left,top:r.top};dragged=false};
+ launcher.onpointermove=e=>{if(!origin)return;const dx=e.clientX-origin.x,dy=e.clientY-origin.y;if(Math.hypot(dx,dy)<6&&!dragged)return;if(!dragged)launcher.setPointerCapture(e.pointerId);dragged=true;document.body.appendChild(launcher);position={x:origin.left+dx,y:origin.top+dy};place()};
  launcher.onpointerup=()=>{origin=null;if(dragged)try{localStorage.setItem('foozix.assistant.position',JSON.stringify(position))}catch(ignore){}};
  launcher.onpointercancel=()=>{origin=null};window.addEventListener('resize',place);if(position){document.body.appendChild(launcher);place()}
 }
