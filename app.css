@@ -787,3 +787,18 @@ body .super-foozi-launcher.active span{background-position:right center!importan
 
 [dir=ltr] body.v5-shell .topbar .v5-profile{left:auto!important;right:20px!important}[dir=ltr] body.v5-shell .topbar .workspace-tabs{left:85px!important;right:230px!important}
 @media(max-width:760px){[dir=ltr] body.v5-shell .topbar .v5-profile{right:10px!important}[dir=ltr] body.v5-shell .topbar .workspace-tabs{left:70px!important;right:12px!important}}
+[data-workspace-drag]{cursor:grab;flex-shrink:0!important;border:1px solid #c4d8d2!important;border-radius:12px 12px 3px 3px!important;background:#e8efed!important;gap:3px!important}
+.workspace-tab.active{background:#075b4c!important;color:white!important;border-color:#075b4c!important;box-shadow:inset 0 -3px #67e5b5!important}
+.workspace-tab.selected{outline:2px solid #cf9a21!important;outline-offset:-3px}
+.workspace-tab button{color:inherit!important}
+.workspace-tab [data-workspace-save]{background:transparent;border:0;padding:5px;color:#9b7417!important;min-width:24px}
+.workspace-tab.active [data-workspace-save]{color:#ffe297!important}
+.workspace-tabs-list{flex-wrap:nowrap!important;overflow-x:auto!important;scrollbar-width:thin;min-width:0!important}
+.workspace-tab-title{white-space:nowrap!important}
+.workspace-split-grid{height:calc(100dvh - 170px);min-height:280px;overflow:hidden;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important}
+.workspace-split-pane{overflow:auto!important;min-height:0!important;min-width:0!important;overscroll-behavior:contain;scrollbar-gutter:stable}
+.super-foozi-launcher{touch-action:none;cursor:grab}
+.super-foozi-minimize{position:absolute;top:12px;inset-inline-start:12px;z-index:2;border:1px solid #b8d9d2;background:white;border-radius:8px;font-size:24px;width:34px;height:34px}
+body .super-foozi-chat.foozi-dock-left{inset-inline:auto!important;left:16px!important;right:auto!important;width:min(650px,calc(100vw - 190px))!important}
+body .super-foozi-chat.foozi-dock-right{inset-inline:auto!important;right:16px!important;left:auto!important;width:min(650px,calc(100vw - 190px))!important}
+@media(max-width:760px){.workspace-split-grid{grid-template-columns:minmax(0,1fr)!important;grid-template-rows:minmax(0,1fr) minmax(0,1fr);height:calc(100dvh - 180px)}body .super-foozi-chat.foozi-dock-left,body .super-foozi-chat.foozi-dock-right{width:calc(100vw - 24px)!important;left:12px!important;right:12px!important}}
