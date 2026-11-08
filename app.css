@@ -782,3 +782,5 @@ body .super-foozi-launcher.active span{background-position:right center!importan
 @media(max-width:760px){body .super-foozi-launcher.active{inset-inline-end:8px!important;bottom:88px!important;width:85px!important;height:105px!important}}
 
 @media(min-width:1000px){.super-foozi-chat{left:auto!important;right:auto!important;inset-inline-start:auto!important;inset-inline-end:190px!important}}
+
+@media(max-width:760px){body.v5-shell .topbar .workspace-tabs{left:12px!important;right:70px!important}[dir=ltr] body.v5-shell .topbar .workspace-tabs{left:70px!important;right:12px!important}}
