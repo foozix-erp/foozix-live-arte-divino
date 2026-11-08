@@ -784,3 +784,6 @@ body .super-foozi-launcher.active span{background-position:right center!importan
 @media(min-width:1000px){.super-foozi-chat{left:auto!important;right:auto!important;inset-inline-start:auto!important;inset-inline-end:190px!important}}
 
 @media(max-width:760px){body.v5-shell .topbar .workspace-tabs{left:12px!important;right:70px!important}[dir=ltr] body.v5-shell .topbar .workspace-tabs{left:70px!important;right:12px!important}}
+
+[dir=ltr] body.v5-shell .topbar .v5-profile{left:auto!important;right:20px!important}[dir=ltr] body.v5-shell .topbar .workspace-tabs{left:85px!important;right:230px!important}
+@media(max-width:760px){[dir=ltr] body.v5-shell .topbar .v5-profile{right:10px!important}[dir=ltr] body.v5-shell .topbar .workspace-tabs{left:70px!important;right:12px!important}}
