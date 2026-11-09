@@ -1439,8 +1439,16 @@ const superFooziFloatingBase_=mountSuperFoozi_;mountSuperFoozi_=function(){super
 // Keep project/customer relationships consistent in every transaction type.
 const dependencySyncBeforeProjectClient_=updateSmartTxDependencies;
 updateSmartTxDependencies=function(){
-  dependencySyncBeforeProjectClient_();
   const form=document.querySelector('#tx');
+  if(form?.type?.value==='CUSTOMER_RECEIPT'&&form.clientId&&form.projectId){
+    const customerId=String(form.clientId.value||'');
+    const projects=(state.data.projects||[]).filter(project=>!customerId||String(project['معرف العميل'])===customerId);
+    const selected=(state.data.projects||[]).find(project=>String(project['معرف المشروع'])===String(form.projectId.value||''));
+    if(customerId&&(!selected||String(selected['معرف العميل'])!==customerId)){
+      form.projectId.value=projects.length===1?String(projects[0]['معرف المشروع']):'';
+    }
+  }
+  dependencySyncBeforeProjectClient_();
   if(!form?.projectId?.value||!form.clientId)return;
   const project=(state.data.projects||[]).find(x=>String(x['معرف المشروع'])===String(form.projectId.value));
   const customerId=project?.['معرف العميل'];
