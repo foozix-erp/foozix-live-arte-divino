@@ -507,8 +507,8 @@ function partyCapabilityIds_(partyId){
   if(!partyId)return [];
   const party=(state.data.parties||[]).find(item=>String(item['معرف الطرف'])===String(partyId));
   let capabilities=[];
-  try{capabilities=JSON.parse(party?.['قدرات العمل']||'[]')}catch(ignore){capabilities=[]}
-  const ids=capabilities.map(item=>item.finishItemId).filter(Boolean);
+  try{const raw=party?.['قدرات العمل'];capabilities=Array.isArray(raw)?raw:JSON.parse(raw||'[]')}catch(ignore){capabilities=[]}
+  const ids=(Array.isArray(capabilities)?capabilities:[]).map(item=>item?.finishItemId).filter(Boolean);
   (state.data.agreements||[]).filter(item=>String(item['معرف الطرف'])===String(partyId)&&item['الحالة']==='ACTIVE').forEach(item=>{if(item['معرف بند التشطيب'])ids.push(item['معرف بند التشطيب'])});
   return [...new Set(ids.map(String))];
 }
@@ -518,10 +518,10 @@ updateSmartTxDependencies=function(){
   const form=document.querySelector('#tx');
   if(!form||form.type?.value!=='PROJECT_EXPENSE'||!form.finishItemId)return;
   const selected=form.finishItemId.value,partyId=form.partyId?.value;
-  if(!partyId)return;
   const allowed=new Set(partyCapabilityIds_(partyId));
-  const items=(state.data.finishItems||[]).filter(item=>allowed.has(String(item['معرف البند'])));
-  form.finishItemId.innerHTML=txOptions(items,'معرف البند',selected);
+  const items=(state.data.finishItems||[]).filter(item=>referenceIsActive_(item)&&!['FALSE','0'].includes(String(item['نشط']).trim().toUpperCase()));
+  const matching=items.filter(item=>allowed.has(String(item['معرف البند'])));
+  form.finishItemId.innerHTML=txOptions(matching.length?matching:items,'معرف البند',selected);
 };
 
 function financialPeriodPanel_(){const rows=state.data.financialPeriods||[];if(!canAction('finance','edit'))return rows.length?`<div class="panel"><h2>${state.lang==='ar'?'الفترات المالية':'Financial periods'}</h2>${table(rows)}</div>`:'';return `<div class="panel"><h2>${state.lang==='ar'?'إقفال الفترات المالية':'Financial period closing'}</h2><p class="muted">${state.lang==='ar'?'يمنع النظام الإقفال إذا وجدت حركات غير مراجعة أو قيود غير متوازنة. فك الإقفال متاح فقط للشريك أو المدير المالي.':'Closing is blocked while transactions are unreviewed or journals are unbalanced. Reopening is restricted to partners and the financial manager.'}</p><form id="periodCloseForm"><div class="form-grid"><label class="field">${state.lang==='ar'?'الفترة':'Period'}<input name="period" type="month" required></label><label class="field field-wide">${state.lang==='ar'?'سبب الإقفال':'Closing reason'}<input name="reason" required></label></div><div class="actions"><button class="primary">${state.lang==='ar'?'مراجعة وإقفال الفترة':'Validate and close period'}</button></div></form><form id="periodReopenForm"><div class="form-grid"><label class="field">${state.lang==='ar'?'فك فترة':'Reopen period'}<select name="period" required><option value=""></option>${rows.filter(x=>x['الحالة']==='LOCKED').map(x=>`<option>${esc(x['الفترة'])}</option>`).join('')}</select></label><label class="field field-wide">${state.lang==='ar'?'سبب فك الإقفال':'Reopening reason'}<input name="reason" required></label></div><button class="secondary">${state.lang==='ar'?'فك الإقفال':'Reopen'}</button></form>${table(rows)}</div>`}
