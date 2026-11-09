@@ -1471,21 +1471,43 @@ updateSmartTxDependencies=function(){
   }
 };
 const masterDataApiBefore_=api;
+function masterCacheTargets_(action, payload){
+  if(action==='agreement.create'||action==='agreement.amend'||action==='agreement.certify')return [['agreements','معرف الاتفاق']];
+  if(action!=='master.create'&&action!=='master.update')return [];
+  const map={client:['clients','معرف العميل'],party:['parties','معرف الطرف'],project:['projects','معرف المشروع'],finishItem:['finishItems','معرف البند'],expenseItem:['expenseItems','معرف بند المصروف'],employee:['employees','معرف الموظف'],asset:['assets','معرف الأصل'],cashAccount:['cashAccounts','معرف الحساب النقدي'],agreement:['agreements','معرف الاتفاق']};
+  const target=map[payload?.entity];return target?[target]:[];
+}
+function broadcastMasterCacheChange_(action,payload,record){
+  const targets=masterCacheTargets_(action,payload);if(!targets.length||!record)return;
+  for(const [key,id] of targets){
+    if(!record[id])continue;
+    const merge=list=>[...(list||[]).filter(item=>String(item[id])!==String(record[id])),record];
+    state.data[key]=merge(state.data[key]);
+    Object.values(state.workspaceSnapshots||{}).forEach(snapshot=>{if(snapshot?.data)snapshot.data[key]=merge(snapshot.data[key])});
+  }
+  // Any view that derives a dropdown from master data must revalidate before its next navigation.
+  ['transaction','projects','parties','reports','settings','dashboard'].forEach(view=>{state.loadedAt[view]=0});
+  try{localStorage.setItem('foozix.masterDataChanged',String(Date.now()))}catch(ignore){}
+}
 api=async function(action,payload={}){
   const response=await masterDataApiBefore_(action,payload);
   if(!response?.ok)return response;
   const record=response.data?.record||response.data;
-  const targets=action==='agreement.create'?{agreement:['agreements','معرف الاتفاق']}:action==='master.create'?{
-    client:['clients','معرف العميل'],party:['parties','معرف الطرف'],project:['projects','معرف المشروع'],
-    finishItem:['finishItems','معرف البند'],expenseItem:['expenseItems','معرف بند المصروف'],
-    employee:['employees','معرف الموظف'],asset:['assets','معرف الأصل']
-  }:{};
-  const target=targets[action==='agreement.create'?'agreement':payload?.entity];
-  if(!target||!record?.[target[1]])return response;
-  const merge=list=>[...(list||[]).filter(item=>String(item[target[1]])!==String(record[target[1]])),record];
-  state.data[target[0]]=merge(state.data[target[0]]);
-  Object.values(state.workspaceSnapshots||{}).forEach(snapshot=>{
-    if(snapshot?.data)snapshot.data[target[0]]=merge(snapshot.data[target[0]]);
-  });
+  broadcastMasterCacheChange_(action,payload,record);
   return response;
 };
+window.addEventListener('storage',async event=>{
+  if(event.key!=='foozix.masterDataChanged'||!state.profile)return;
+  Object.keys(state.loadedAt).forEach(view=>{state.loadedAt[view]=0});
+  const currentView=state.view,profile=state.profile;
+  try{
+    const response=await api('view.load',{view:currentView});
+    if(!response?.ok||state.profile!==profile)return;
+    for(const key of ['clients','projects','parties','finishItems','expenseItems','employees','assets','cashAccounts','agreements']){
+      if(!Array.isArray(response.data?.[key]))continue;
+      state.data[key]=response.data[key];
+      Object.values(state.workspaceSnapshots||{}).forEach(snapshot=>{if(snapshot?.data)snapshot.data[key]=response.data[key]});
+    }
+    if(state.view===currentView&&!state.loading){workspaceCaptureSnapshot_();state.workspaceRestorePending=state.activeWorkspaceTab;render()}
+  }catch(ignore){/* Keep the current draft intact; normal navigation can retry the read. */}
+});
