@@ -1489,11 +1489,27 @@ function broadcastMasterCacheChange_(action,payload,record){
   ['transaction','projects','parties','reports','settings','dashboard'].forEach(view=>{state.loadedAt[view]=0});
   try{localStorage.setItem('foozix.masterDataChanged',String(Date.now()))}catch(ignore){}
 }
+async function refreshLiveReferenceView_(){
+  if(!state.profile||state.loading)return;
+  const view=state.view;
+  try{
+    workspaceCaptureSnapshot_();
+    const response=await masterDataApiBefore_('view.load',{view});
+    if(!response?.ok||state.view!==view)return;
+    Object.assign(state.data,response.data||{});
+    Object.values(state.workspaceSnapshots||{}).forEach(snapshot=>{if(snapshot?.data)Object.assign(snapshot.data,response.data||{})});
+    state.loadedAt[view]=Date.now();
+    state.workspaceRestorePending=state.activeWorkspaceTab;
+  }catch(ignore){
+    // The created record remains in the local cache; the next navigation retries the read.
+  }
+}
 api=async function(action,payload={}){
   const response=await masterDataApiBefore_(action,payload);
   if(!response?.ok)return response;
   const record=response.data?.record||response.data;
   broadcastMasterCacheChange_(action,payload,record);
+  if(['master.create','master.update','agreement.create','agreement.amend','agreement.certify'].includes(action))await refreshLiveReferenceView_();
   return response;
 };
 window.addEventListener('storage',async event=>{
