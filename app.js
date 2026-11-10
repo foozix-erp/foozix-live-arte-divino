@@ -591,13 +591,23 @@ function installDropdowns_(){
   const place=()=>{if(!active)return;const rect=active.input.getBoundingClientRect(),below=window.innerHeight-rect.bottom,height=Math.min(280,window.innerHeight*.45);popup.style.left=Math.max(4,Math.min(rect.left,window.innerWidth-rect.width-4))+'px';popup.style.width=Math.min(rect.width,window.innerWidth-8)+'px';popup.style.top=(below>Math.min(160,height)?rect.bottom:Math.max(4,rect.top-Math.min(height,popup.scrollHeight)))+'px'};
   const show=(binding,query='')=>{active=binding;const popupHost=binding.input.closest('dialog')||document.body;if(popup.parentNode!==popupHost)popupHost.append(popup);popup.replaceChildren();highlight=-1;const options=[...binding.select.options].filter(option=>!option.disabled&&dropdownMatches_(option.dataset.search||option.textContent,query));options.forEach(option=>{const button=document.createElement('button');button.type='button';button.setAttribute('role','option');button.setAttribute('aria-selected',String(option.selected));button.textContent=option.textContent||'—';button.onpointerdown=event=>event.preventDefault();button.onclick=()=>{binding.select.value=option.value;binding.input.value=option.textContent||'';binding.select.dispatchEvent(new Event('change',{bubbles:true}));binding.input.focus();close()};popup.append(button)});if(!options.length){const empty=document.createElement('div');empty.textContent=state.lang==='ar'?'لا توجد نتيجة':'No match';empty.style.padding='10px';popup.append(empty)}popup.hidden=false;binding.input.setAttribute('aria-expanded','true');place()};
   const bindings=new WeakMap();
+  const clearChoice=(select)=>{
+    if(!select.value)return;
+    select.value='';
+    select.dataset.foozixCleared='true';
+    if(select.name==='clientId'&&select.form?.id==='tx'&&select.form.projectId){
+      select.form.projectId.value='';
+    }
+    select.dispatchEvent(new Event('change',{bubbles:true}));
+  };
   const upgrade=()=>document.querySelectorAll('select:not([multiple])').forEach(select=>{
     let binding=bindings.get(select);if(binding){if(select.disabled&&active?.select===select)close();if(active?.select!==select)binding.input.value=select.selectedOptions[0]?.textContent||'';if(binding.input.disabled!==select.disabled)binding.input.disabled=select.disabled;return}
     const wrapper=document.createElement('span');wrapper.className='foozix-select';select.before(wrapper);wrapper.append(select);select.tabIndex=-1;
     const input=document.createElement('input');input.type='text';input.className='foozix-combobox';input.autocomplete='off';input.setAttribute('role','combobox');input.setAttribute('aria-autocomplete','list');input.setAttribute('aria-expanded','false');input.setAttribute('aria-controls',popup.id);input.setAttribute('aria-label',select.getAttribute('aria-label')||select.labels?.[0]?.childNodes?.[0]?.textContent?.trim()||select.name||'اختيار');wrapper.append(input);
     binding={select,input};bindings.set(select,binding);input.value=select.selectedOptions[0]?.textContent||'';input.disabled=select.disabled;
     input.onfocus=()=>show(binding);input.onclick=()=>{input.select();show(binding)};input.oninput=()=>show(binding,input.value);input.onkeydown=event=>{if(event.key==='Escape'){close();return}if(['ArrowDown','ArrowUp','Enter'].includes(event.key)){event.preventDefault();if(popup.hidden)show(binding,input.value);const buttons=[...popup.querySelectorAll('button')];if(event.key==='Enter'){if(highlight>=0)buttons[highlight]?.click();else if(buttons.length===1)buttons[0].click();return}highlight=(highlight+(event.key==='ArrowDown'?1:-1)+buttons.length)%buttons.length;buttons[highlight]?.focus()}};
-    select.addEventListener('change',()=>{input.value=select.selectedOptions[0]?.textContent||''});select.addEventListener('invalid',event=>{event.preventDefault();input.focus();show(binding)});
+    input.addEventListener('input',()=>{if(!input.value.trim()){clearChoice(select);input.value='';show(binding)}});
+    select.addEventListener('change',()=>{if(select.value)delete select.dataset.foozixCleared;if(select.name==='clientId'&&select.value&&select.form?.projectId?.dataset)delete select.form.projectId.dataset.foozixCleared;input.value=select.selectedOptions[0]?.textContent||''});select.addEventListener('invalid',event=>{event.preventDefault();input.focus();show(binding)});
   });
   popup.onkeydown=event=>{const buttons=[...popup.querySelectorAll('button')];if(event.key==='Escape'){event.preventDefault();const input=active?.input;input?.focus();close()}else if(['ArrowDown','ArrowUp'].includes(event.key)){event.preventDefault();highlight=(buttons.indexOf(document.activeElement)+(event.key==='ArrowDown'?1:-1)+buttons.length)%buttons.length;buttons[highlight]?.focus()}};
   document.addEventListener('pointerdown',event=>{if(!popup.contains(event.target)&&!event.target.closest('.foozix-select'))close()});document.addEventListener('focusin',event=>{if(active&&!popup.contains(event.target)&&event.target!==active.input)close()});window.addEventListener('resize',place);document.addEventListener('scroll',place,true);
@@ -1453,7 +1463,7 @@ updateSmartTxDependencies=function(){
     const selected=(state.data.projects||[]).find(project=>String(project['معرف المشروع'])===String(form.projectId.value||''));
     form.projectId.innerHTML=txOptions(projects,'معرف المشروع',selected?.['معرف المشروع']||'');
     if(customerId&&(!selected||String(selected['معرف العميل'])!==customerId)){
-      form.projectId.value=projects.length===1?String(projects[0]['معرف المشروع']):'';
+      form.projectId.value=projects.length===1&&!form.projectId.dataset?.foozixCleared?String(projects[0]['معرف المشروع']):'';
     }
   }
   dependencySyncBeforeProjectClient_();
@@ -1476,6 +1486,28 @@ updateSmartTxDependencies=function(){
   }
 };
 const masterDataApiBefore_=api;
+const confirmedSaveActions_=new Set([
+  'transaction.create','transaction.createAndSubmit','transaction.submit','transaction.post','transaction.correct','transaction.reclassify','transaction.cancel','transaction.cancelDuplicate','transaction.directPaymentBatchApply',
+  'master.create','master.update','master.deactivate','master.delete','agreement.create','agreement.amend','agreement.certify',
+  'return.create','return.customerGrouped','approval.decide','project.closing.request','employee.change','loan.create','loan.repay','loan.edit',
+  'payroll.ensure','payroll.calculate','payroll.saveDetail','payroll.submit','payroll.lock','markup.allocate','markup.usageSave','markup.usageBatchSave','markup.usageDecide',
+  'accounting.manualJournal','finance.period.close','finance.period.reopen','bank.statement.create','bank.statement.review',
+  'notification.preferences.update','permission.set','settings.safeWithdrawalBuffer.update','drive.setup','backup.create','backup.schedule','backup.disable','backup.restore','alerts.refresh','alerts.schedule','alerts.disable'
+]);
+let confirmedSaveTimer_;
+function showConfirmedSave_(){
+  let banner=document.querySelector('#confirmedSaveBanner');
+  if(!banner){
+    banner=document.createElement('div');
+    banner.id='confirmedSaveBanner';
+    banner.setAttribute('role','status');
+    banner.style.cssText='position:fixed;inset-block-start:12px;inset-inline:16px;z-index:100001;padding:12px;border-radius:8px;background:#14664e;color:#fff;text-align:center;pointer-events:none';
+  }
+  document.body.append(banner);
+  banner.textContent=t('success');
+  clearTimeout(confirmedSaveTimer_);
+  confirmedSaveTimer_=setTimeout(()=>banner.remove(),4500);
+}
 function masterCacheTargets_(action, payload){
   if(action==='agreement.create'||action==='agreement.amend'||action==='agreement.certify')return [['agreements','معرف الاتفاق']];
   if(action!=='master.create'&&action!=='master.update')return [];
@@ -1512,6 +1544,7 @@ async function refreshLiveReferenceView_(){
 api=async function(action,payload={}){
   const response=await masterDataApiBefore_(action,payload);
   if(!response?.ok)return response;
+  if(confirmedSaveActions_.has(action))showConfirmedSave_();
   const record=response.data?.record||response.data;
   broadcastMasterCacheChange_(action,payload,record);
   if(['master.create','master.update','agreement.create','agreement.amend','agreement.certify'].includes(action))await refreshLiveReferenceView_();
