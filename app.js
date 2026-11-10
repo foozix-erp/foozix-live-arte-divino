@@ -513,15 +513,17 @@ function partyCapabilityIds_(partyId){
   return [...new Set(ids.map(String))];
 }
 const updateSmartTxDependenciesPartyBase_=updateSmartTxDependencies;
-updateSmartTxDependencies=function(){
-  updateSmartTxDependenciesPartyBase_();
-  const form=document.querySelector('#tx');
-  if(!form||form.type?.value!=='PROJECT_EXPENSE'||!form.finishItemId)return;
+function refreshProjectFinishOptions_(form){
   const selected=form.finishItemId.value,partyId=form.partyId?.value;
   const allowed=new Set(partyCapabilityIds_(partyId));
   const items=(state.data.finishItems||[]).filter(item=>referenceIsActive_(item)&&!['FALSE','0'].includes(String(item['نشط']).trim().toUpperCase()));
   const matching=items.filter(item=>allowed.has(String(item['معرف البند'])));
   form.finishItemId.innerHTML=txOptions(matching.length?matching:items,'معرف البند',selected);
+}
+updateSmartTxDependencies=function(){
+  updateSmartTxDependenciesPartyBase_();
+  const form=document.querySelector('#tx');
+  if(form?.type?.value==='PROJECT_EXPENSE'&&form.finishItemId)refreshProjectFinishOptions_(form);
 };
 
 function financialPeriodPanel_(){const rows=state.data.financialPeriods||[];if(!canAction('finance','edit'))return rows.length?`<div class="panel"><h2>${state.lang==='ar'?'الفترات المالية':'Financial periods'}</h2>${table(rows)}</div>`:'';return `<div class="panel"><h2>${state.lang==='ar'?'إقفال الفترات المالية':'Financial period closing'}</h2><p class="muted">${state.lang==='ar'?'يمنع النظام الإقفال إذا وجدت حركات غير مراجعة أو قيود غير متوازنة. فك الإقفال متاح فقط للشريك أو المدير المالي.':'Closing is blocked while transactions are unreviewed or journals are unbalanced. Reopening is restricted to partners and the financial manager.'}</p><form id="periodCloseForm"><div class="form-grid"><label class="field">${state.lang==='ar'?'الفترة':'Period'}<input name="period" type="month" required></label><label class="field field-wide">${state.lang==='ar'?'سبب الإقفال':'Closing reason'}<input name="reason" required></label></div><div class="actions"><button class="primary">${state.lang==='ar'?'مراجعة وإقفال الفترة':'Validate and close period'}</button></div></form><form id="periodReopenForm"><div class="form-grid"><label class="field">${state.lang==='ar'?'فك فترة':'Reopen period'}<select name="period" required><option value=""></option>${rows.filter(x=>x['الحالة']==='LOCKED').map(x=>`<option>${esc(x['الفترة'])}</option>`).join('')}</select></label><label class="field field-wide">${state.lang==='ar'?'سبب فك الإقفال':'Reopening reason'}<input name="reason" required></label></div><button class="secondary">${state.lang==='ar'?'فك الإقفال':'Reopen'}</button></form>${table(rows)}</div>`}
@@ -591,6 +593,30 @@ function installDropdowns_(){
   const place=()=>{if(!active)return;const rect=active.input.getBoundingClientRect(),below=window.innerHeight-rect.bottom,height=Math.min(280,window.innerHeight*.45);popup.style.left=Math.max(4,Math.min(rect.left,window.innerWidth-rect.width-4))+'px';popup.style.width=Math.min(rect.width,window.innerWidth-8)+'px';popup.style.top=(below>Math.min(160,height)?rect.bottom:Math.max(4,rect.top-Math.min(height,popup.scrollHeight)))+'px'};
   const show=(binding,query='')=>{active=binding;const popupHost=binding.input.closest('dialog')||document.body;if(popup.parentNode!==popupHost)popupHost.append(popup);popup.replaceChildren();highlight=-1;const options=[...binding.select.options].filter(option=>!option.disabled&&dropdownMatches_(option.dataset.search||option.textContent,query));options.forEach(option=>{const button=document.createElement('button');button.type='button';button.setAttribute('role','option');button.setAttribute('aria-selected',String(option.selected));button.textContent=option.textContent||'—';button.onpointerdown=event=>event.preventDefault();button.onclick=()=>{binding.select.value=option.value;binding.input.value=option.textContent||'';binding.select.dispatchEvent(new Event('change',{bubbles:true}));binding.input.focus();close()};popup.append(button)});if(!options.length){const empty=document.createElement('div');empty.textContent=state.lang==='ar'?'لا توجد نتيجة':'No match';empty.style.padding='10px';popup.append(empty)}popup.hidden=false;binding.input.setAttribute('aria-expanded','true');place()};
   const bindings=new WeakMap();
+  let pendingFinishItems;
+  const openOptions=async binding=>{
+    show(binding);
+    const select=binding.select,form=select.form;
+    if(select.name!=='finishItemId'||form?.id!=='tx'||form.type?.value!=='PROJECT_EXPENSE'||select.options.length>1)return;
+    const status=document.createElement('div');
+    status.setAttribute('role','status');
+    status.textContent=state.lang==='ar'?'جارٍ تحميل بنود التشطيب…':'Loading finishing items…';
+    popup.replaceChildren(status);
+    try{
+      const profile=state.profile;
+      pendingFinishItems||=api('transaction.finishItems',{}).finally(()=>{pendingFinishItems=null});
+      const response=await pendingFinishItems;
+      if(state.profile!==profile||!select.isConnected||form.finishItemId!==select)return;
+      if(!response?.ok)throw new Error(response?msg(response):'Lookup failed');
+      state.data.finishItems=response.data;
+      refreshProjectFinishOptions_(form);
+      if(active!==binding)return;
+      if(select.options.length>1){show(binding,binding.input.value);return}
+      if(status.isConnected)status.textContent=state.lang==='ar'?'لا توجد بنود تشطيب نشطة.':'No active finishing items.';
+    }catch(error){
+      if(active===binding&&status.isConnected)status.textContent=state.lang==='ar'?'تعذر تحميل بنود التشطيب. اضغط على القائمة للمحاولة تاني.':'Could not load finishing items. Open the list to retry.';
+    }
+  };
   const clearChoice=(select)=>{
     if(!select.value)return;
     select.value='';
@@ -605,7 +631,7 @@ function installDropdowns_(){
     const wrapper=document.createElement('span');wrapper.className='foozix-select';select.before(wrapper);wrapper.append(select);select.tabIndex=-1;
     const input=document.createElement('input');input.type='text';input.className='foozix-combobox';input.autocomplete='off';input.setAttribute('role','combobox');input.setAttribute('aria-autocomplete','list');input.setAttribute('aria-expanded','false');input.setAttribute('aria-controls',popup.id);input.setAttribute('aria-label',select.getAttribute('aria-label')||select.labels?.[0]?.childNodes?.[0]?.textContent?.trim()||select.name||'اختيار');wrapper.append(input);
     binding={select,input};bindings.set(select,binding);input.value=select.selectedOptions[0]?.textContent||'';input.disabled=select.disabled;
-    input.onfocus=()=>show(binding);input.onclick=()=>{input.select();show(binding)};input.oninput=()=>show(binding,input.value);input.onkeydown=event=>{if(event.key==='Escape'){close();return}if(['ArrowDown','ArrowUp','Enter'].includes(event.key)){event.preventDefault();if(popup.hidden)show(binding,input.value);const buttons=[...popup.querySelectorAll('button')];if(event.key==='Enter'){if(highlight>=0)buttons[highlight]?.click();else if(buttons.length===1)buttons[0].click();return}highlight=(highlight+(event.key==='ArrowDown'?1:-1)+buttons.length)%buttons.length;buttons[highlight]?.focus()}};
+    input.onfocus=()=>openOptions(binding);input.onclick=()=>{input.select();openOptions(binding)};input.oninput=()=>show(binding,input.value);input.onkeydown=event=>{if(event.key==='Escape'){close();return}if(['ArrowDown','ArrowUp','Enter'].includes(event.key)){event.preventDefault();if(popup.hidden)show(binding,input.value);const buttons=[...popup.querySelectorAll('button')];if(event.key==='Enter'){if(highlight>=0)buttons[highlight]?.click();else if(buttons.length===1)buttons[0].click();return}highlight=(highlight+(event.key==='ArrowDown'?1:-1)+buttons.length)%buttons.length;buttons[highlight]?.focus()}};
     input.addEventListener('input',()=>{if(!input.value.trim()){clearChoice(select);input.value='';show(binding)}});
     select.addEventListener('change',()=>{if(select.value)delete select.dataset.foozixCleared;if(select.name==='clientId'&&select.value&&select.form?.projectId?.dataset)delete select.form.projectId.dataset.foozixCleared;input.value=select.selectedOptions[0]?.textContent||''});select.addEventListener('invalid',event=>{event.preventDefault();input.focus();show(binding)});
   });
