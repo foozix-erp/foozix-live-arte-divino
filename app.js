@@ -1446,7 +1446,8 @@ function v5FinalizeDrawer_(){
   // Keep the assistant anchored to the drawer itself.  Anchoring it inside
   // the scrolling nav can clip it or make it disappear after a render.
   if(launcher&&launcher.parentElement!==side)side.appendChild(launcher);
-  let actions=nav.querySelector('.v5-drawer-actions');if(!actions){actions=document.createElement('div');actions.className='v5-drawer-actions';nav.appendChild(actions)}
+  let actions=side.querySelector('.v5-drawer-actions');if(!actions){actions=document.createElement('div');actions.className='v5-drawer-actions'}
+  if(actions.parentElement!==side)nav.after(actions);
   [lang,logout].filter(Boolean).forEach(button=>{button.classList.add('v5-drawer-action');actions.appendChild(button)});
   const mark=side.querySelector('.v5-foozix-mark'),powered=side.querySelector('.v5-powered');if(powered)powered.innerHTML='Powered by <b>FOOZIX</b>';
   if(mark&&powered&&!mark.parentElement.classList.contains('v5-foozix-lockup')){const lockup=document.createElement('span');lockup.className='v5-foozix-lockup';mark.before(lockup);lockup.append(mark,powered)}

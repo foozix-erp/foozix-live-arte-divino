@@ -802,10 +802,136 @@ body .super-foozi-launcher.active span{background-position:right center!importan
 body .super-foozi-chat.foozi-dock-left{inset-inline:auto!important;left:16px!important;right:auto!important;width:min(650px,calc(100vw - 190px))!important}
 body .super-foozi-chat.foozi-dock-right{inset-inline:auto!important;right:16px!important;left:auto!important;width:min(650px,calc(100vw - 190px))!important}
 @media(max-width:760px){.workspace-split-grid{grid-template-columns:minmax(0,1fr)!important;grid-template-rows:minmax(0,1fr) minmax(0,1fr);height:calc(100dvh - 180px)}body .super-foozi-chat.foozi-dock-left,body .super-foozi-chat.foozi-dock-right{width:calc(100vw - 24px)!important;left:12px!important;right:12px!important}}
-/* Keep SUPER FOOZI visible in the drawer after navigation and rerenders. */
-.v5-shell .sidebar > .super-foozi-launcher{display:block!important;position:absolute!important;inset-inline-start:52px!important;inset-inline-end:auto!important;bottom:38px!important;z-index:96!important;visibility:visible!important;opacity:1!important;pointer-events:auto!important}
-.v5-shell .sidebar > .super-foozi-launcher span{display:block!important;visibility:visible!important;opacity:1!important}
-@media(max-width:760px){.v5-shell .sidebar > .super-foozi-launcher{inset-inline-start:57px!important;bottom:34px!important;width:200px!important;height:266px!important}}
+/* Workspace header and drawer share one set of responsive dimensions. */
+body.v5-shell {
+  --workspace-header-height: 56px;
+  --drawer-width: min(315px, 94vw);
+  --drawer-control-size: 44px;
+}
+body.v5-shell .topbar {
+  box-sizing: border-box;
+  display: grid!important;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center!important;
+  gap: 10px!important;
+  height: var(--workspace-header-height)!important;
+  min-height: var(--workspace-header-height)!important;
+  padding: 0 12px!important;
+  padding-inline-start: calc(var(--drawer-control-size) + 10px)!important;
+  border-radius: 0!important;
+}
+html[dir] body.v5-shell .topbar .workspace-tabs,
+html[dir] body.v5-shell .topbar .v5-profile {
+  position: relative!important;
+  inset: auto!important;
+  margin: 0!important;
+}
+html[dir] body.v5-shell .topbar .workspace-tabs {
+  grid-column: 1;
+  grid-row: 1;
+  height: 42px!important;
+  padding: 0!important;
+  align-items: center!important;
+}
+html[dir] body.v5-shell .topbar .v5-profile {
+  grid-column: 2;
+  grid-row: 1;
+  max-width: 176px!important;
+}
+body.v5-shell .topbar .v5-avatar {
+  width: 38px!important;
+  height: 38px!important;
+  flex: 0 0 38px!important;
+}
+body.v5-shell .workspace-tabs-list { align-items: center!important; }
+body.v5-shell .workspace-tab { height: 38px!important; }
+body.v5-shell .workspace-tab-select,
+body.v5-shell .workspace-tab-close { height: 100%!important; }
+body.v5-shell .workspace-tab-title { font-size: .88rem!important; }
+body.v5-shell .workspace-tabs-actions button { min-height: 34px!important; }
+body.v5-shell .workspace-refresh { width: 38px!important; }
+
+body.v5-shell .sidebar {
+  width: var(--drawer-width)!important;
+  display: flex!important;
+  flex-direction: column!important;
+}
+body.v5-shell .sidebar > .nav { order: 10!important; }
+body.v5-shell .sidebar > .v5-drawer-actions {
+  order: 20!important;
+  flex: 0 0 auto!important;
+  width: calc(100% - 44px)!important;
+  margin-inline-end: auto!important;
+}
+body.v5-shell .sidebar > .super-foozi-launcher:not(.active) {
+  order: 30!important;
+  position: relative!important;
+  inset: auto!important;
+  transform: none!important;
+  width: auto!important;
+  height: clamp(76px, 19dvh, 152px)!important;
+  min-height: 0!important;
+  flex: 0 0 auto!important;
+  aspect-ratio: 3 / 4;
+  align-self: center!important;
+  margin: 4px 0 0!important;
+  visibility: visible!important;
+  opacity: 1!important;
+}
+body.v5-shell .sidebar > .super-foozi-launcher:not(.active) span {
+  background-size: contain!important;
+  background-position: center!important;
+}
+html[dir] body.v5-shell .drawer-edge-toggle {
+  position: fixed!important;
+  top: 0!important;
+  left: auto!important;
+  right: auto!important;
+  inset-inline-start: 0!important;
+  width: var(--drawer-control-size)!important;
+  height: var(--workspace-header-height)!important;
+  background: linear-gradient(150deg,#08786b,#03483f)!important;
+  border-radius: 0 0 12px 12px!important;
+  transition: none!important;
+  display: grid!important;
+  place-items: center!important;
+}
+html[dir] body.v5-shell:has(.sidebar.open) .drawer-edge-toggle {
+  inset-inline-start: calc(var(--drawer-width) - var(--drawer-control-size))!important;
+}
+body.v5-shell .drawer-edge-toggle::before {
+  content: ''!important;
+  position: absolute;
+  inset: 0 auto auto 0;
+  inset-inline-start: 0;
+  inset-inline-end: auto;
+  width: 8px;
+  height: 100dvh;
+  background: linear-gradient(180deg,#079481,#03483f 65%,#08786b);
+  pointer-events: none;
+}
+body.v5-shell .drawer-edge-toggle.drawer-open::before { content: none!important; }
+body.v5-shell .drawer-edge-toggle::after {
+  content: ''!important;
+  width: 17px;
+  height: 13px;
+  background: linear-gradient(#fff,#fff) 0 0/100% 2px,
+    linear-gradient(#fff,#fff) 0 50%/100% 2px,
+    linear-gradient(#fff,#fff) 0 100%/100% 2px;
+  background-repeat: no-repeat;
+}
+@media (max-width:760px) {
+  body.v5-shell { --workspace-header-height: 52px; --drawer-width: min(300px, 94vw); }
+  body.v5-shell .topbar { padding-inline-end: 6px!important; gap: 5px!important; }
+  body.v5-shell .topbar .v5-profile > span:last-child { display: none!important; }
+  body.v5-shell .topbar .v5-profile { min-width: 44px!important; min-height: 44px!important; }
+  body.v5-shell .topbar .v5-avatar { width: 32px!important; height: 32px!important; flex-basis: 32px!important; }
+  body.v5-shell .workspace-tab { min-width: 96px!important; max-width: 158px!important; }
+  body.v5-shell .workspace-tab-select { padding-inline: 7px!important; }
+  body.v5-shell .workspace-tabs-actions { gap: 4px!important; }
+  body.v5-shell .workspace-tabs-actions button { min-height: 40px!important; }
+  body.v5-shell .content > h1 { font-size: clamp(1.2rem, 5vw, 1.55rem)!important; }
+}
 
 /* Refresh only the arrow; the button and its hit target remain still. */
 .workspace-refresh,.page-refresh-button{font-size:0!important}.workspace-refresh::before,.page-refresh-button::before{content:"↻";display:inline-block;font-size:1.25rem}.workspace-refresh.is-refreshing,.page-refresh-button.is-refreshing{animation:none!important}.workspace-refresh.is-refreshing::before,.page-refresh-button.is-refreshing::before{animation:workspaceRefreshSpin .8s linear infinite}
