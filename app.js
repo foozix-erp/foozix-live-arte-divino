@@ -74,6 +74,14 @@ async function finishGoogleLogin_(){
   if(params.has('error'))throw new Error('لم تكتمل موافقة Google. أعد تسجيل الدخول.');
   const r=await api('auth.google.exchange',{code:params.get('code'),state:saved.state,browserVerifier:saved.verifier});
   if(!r?.ok)throw new Error(r?.messageAr||'تعذر إتمام دخول Google');
+  if(saved.purpose==='passkey-enrollment'){
+    if(!r.data.enrollmentTicket)throw new Error('تعذر تأكيد تسجيل الدخول لتسجيل مفتاح المرور');
+    sessionStorage.setItem('foozix.passkey.enrollment',JSON.stringify({
+      token:r.data.token,ticket:r.data.enrollmentTicket
+    }));
+    location.replace('/foozix-live-arte-divino/passkey-registration.html');
+    return true;
+  }
   storeSessionToken_(r.data.token);return true;
 }
 

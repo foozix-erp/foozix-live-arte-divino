@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>مراجعة دفعة الحركات | FOOZIX</title>
+<style>
+body{margin:0;background:#edf6f3;color:#142d26;font:1rem/1.6 system-ui,sans-serif}
+main{max-width:70rem;margin:2rem auto;padding:1.5rem;background:white;border-radius:1rem}
+button,input,select,textarea{font:inherit}button{padding:.8rem 1.3rem;border:0;border-radius:.5rem;background:#08634e;color:white}
+input,select{min-width:10rem;padding:.5rem;box-sizing:border-box}textarea{width:100%;min-height:8rem;box-sizing:border-box}fieldset{border:0;padding:0}summary{cursor:pointer}
+button:disabled{background:#667972}table{width:100%;border-collapse:collapse}th,td{padding:.7rem;border-bottom:1px solid #d3e1dc;text-align:start}
+.scroll{overflow:auto}#actions{display:flex;gap:1rem;margin-top:1rem}@media(max-width:40rem){main{margin:.5rem;padding:1rem}}
+</style>
+<main>
+<h1>مراجعة دفعة الحركات</h1>
+<form id="batch-editor"><fieldset id="editor-controls" disabled>
+<label for="source-text">نص الحركات</label>
+<textarea id="source-text" placeholder="الصق الحركات هنا، كل حركة في سطر."></textarea>
+<button id="split-text" type="button">تقسيم إلى مسودة</button>
+<button id="add-row" type="button">إضافة حركة</button>
+<p>راجع المبلغ والتاريخ والتصنيف لكل صف قبل المعاينة.</p>
+<div class="scroll"><table id="rows"><thead><tr>
+<th>التاريخ</th><th>نوع الحركة</th><th>العميل</th><th>المشروع</th><th>المورد</th><th>البند</th><th>الاتفاق</th>
+<th>المبلغ</th><th>طريقة الدفع</th><th>الحساب</th><th>البيان</th><th>الملاحظات</th><th>على حساب الشركة</th><th>تفاصيل إضافية</th><th>إزالة</th>
+</tr></thead><tbody></tbody></table></div>
+<button type="submit">مراجعة الدفعة</button>
+</fieldset></form>
+<details><summary>استيراد ملف مجهّز</summary><label>ملف الحركات <input id="file" type="file" accept=".json,application/json"></label></details>
+<p id="status" role="status">جارٍ تحميل قوائم السيستم…</p>
+<div id="preview" class="scroll"></div>
+<div id="actions"><button id="approve" disabled>اعتماد بمفتاح المرور</button><button id="execute" disabled>تسجيل الدفعة المعتمدة</button></div>
+</main>
+<script>
+const statusBox=document.querySelector('#status'),preview=document.querySelector('#preview');
+const approve=document.querySelector('#approve'),execute=document.querySelector('#execute'),file=document.querySelector('#file');
+const endpoint='https://script.google.com/macros/s/AKfycbxgMmDd9VtbtSFY8H_Jd-lFtDj8ToRRhpxfBqZAuSCqCEgAS9s4NJJpj_lw3mUPh9URbQ/exec';
+let transactions,grantId;
+const controls=document.querySelector('#editor-controls');
+let lookups;
+let returnSources;
+const linkedReturnTypes=['PURCHASE_RETURN_CASH','PURCHASE_RETURN_CREDIT','LINKED_CUSTOMER_REFUND'];
+function invalidateApproval(){
+  transactions=undefined;grantId=undefined;approve.disabled=true;execute.disabled=true;preview.replaceChildren();
+}
+function picker(rows,id,label){
+  const select=document.createElement('select');
+  select.add(new Option('اختيار…',''));
+  for(const row of rows||[])select.add(new Option(label?label(row):(row['الاسم الإنجليزي']||row['الاسم العربي']||row['الاسم']||row['الوصف']||row[id]),row[id]));
+  return select;
+}
+function normalizeBatchSearch(text){
+  return String(text||'').normalize('NFKC').toLowerCase()
+    .replace(/[\u064b-\u065f\u0670\u0640]/g,'')
+    .replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي')
+    .replace(/[^\p{L}\p{N}]+/gu,' ').trim();
+}
+function findBatchMatch(text,rows,id,labels){
+  const query=' '+normalizeBatchSearch(text)+' ';
+  const matches=new Map();
+  for(const record of rows||[]){
+    for(const label of [id,...labels]){
+      const name=normalizeBatchSearch(record[label]);
+      if(name.length>=3&&query.includes(' '+name+' ')){
+        matches.set(record[id],record);
+        break;
+      }
+    }
+  }
+  return matches.size===1?matches.values().next().value:undefined;
+}
+function addRow(draft={}){
+  const body=document.querySelector('#rows tbody');
+  if(body.rows.length>=50)throw Error('الحد الأقصى 50 حركة للدفعة.');
+  const row=body.insertRow();
+  const put=(name,input)=>{input.name=name;row.insertCell().append(input);return input};
+  const field=(name,type,value)=>{const input=document.createElement('input');input.type=type;input.value=value||'';return put(name,input)};
+  const date=field('transactionDate','date',draft.date);date.required=true;
+  const type=put('type',picker(lookups.movementTypes.map(([id,name])=>({id,name})),'id',x=>x.name));type.required=true;
+  const client=put('clientId',picker(lookups.clients,'معرف العميل'));client.required=true;
+  const project=put('projectId',picker(lookups.projects,'معرف المشروع'));project.required=true;
+  const party=put('partyId',picker(lookups.parties,'معرف الطرف'));
+  put('finishItemId',picker(lookups.finishItems,'معرف البند'));
+  const agreement=put('agreementId',picker([],'معرف الاتفاق'));
+  const amount=field('amount','number',draft.amount);amount.min='.01';amount.step='.01';amount.required=true;
+  const payment=put('paymentMethod',picker([{id:'BANK_TRANSFER',name:'تحويل بنكي'},{id:'CASH',name:'نقدي'},{id:'CHEQUE',name:'شيك'}],'id',x=>x.name));payment.required=true;
+  const account=put('accountId',picker(lookups.cashAccounts,'معرف الحساب النقدي'));account.required=true;
+  field('description','text',draft.text).required=true;
+  field('notes','text','');
+  put('companyBears',document.createElement('input')).type='checkbox';
+  const details=document.createElement('details'),summary=document.createElement('summary');
+  summary.textContent='الكمية والنسبة والضريبة والمرجع';details.append(summary);row.insertCell().append(details);
+  const extra=(name,label,type,value)=>{
+    const wrapper=document.createElement('label'),input=document.createElement('input');
+    wrapper.textContent=label;input.name=name;input.type=type;
+    if(type==='checkbox')input.checked=Boolean(value);else input.value=value??'';
+    wrapper.append(input);details.append(wrapper,document.createElement('br'));return input;
+  };
+  const quantity=extra('quantity','الكمية «اختياري»','number','');quantity.min='0';quantity.step='.01';
+  extra('unit','الوحدة','text','آخر');
+  const markup=extra('markupRate','نسبة خاصة % «فارغة = نسبة المشروع»','number','');markup.min='0';markup.max='100';markup.step='.01';
+  extra('reference','المرجع','text','');
+  extra('taxable','فاتورة ضريبية','checkbox',false);
+  const tax=extra('taxRate','نسبة الضريبة %','number','14');tax.min='0';tax.max='100';tax.step='.01';
+  extra('taxInvoiceNumber','رقم الفاتورة الضريبية','text','');
+  extra('taxInvoiceDate','تاريخ الفاتورة الضريبية','date','');
+  extra('noEvidenceConfirmation','تأكيد مسؤولية التسجيل النقدي دون إثبات','checkbox',false);
+  const evidence=extra('evidence','إثبات الحركة «اختياري»','file','');
+  evidence.accept='image/jpeg,image/png,image/webp,application/pdf';
+  evidence.onchange=()=>{delete evidence.dataset.documentId};
+  function extraPicker(name,label,items,id){
+    const wrapper=document.createElement('label'),input=picker(items,id);
+    wrapper.textContent=label;input.name=name;wrapper.append(input);details.append(wrapper,document.createElement('br'));return input;
+  }
+  const employee=extraPicker('employeeId','الموظف / الشريك',lookups.employees,'معرف الموظف');
+  const expense=extraPicker('expenseItemId','بند المصروف',lookups.expenseItems,'معرف بند المصروف');
+  const target=extraPicker('transferTargetId','الحساب المستلم للتحويل',lookups.cashAccounts,'معرف الحساب النقدي');
+  const original=extraPicker('originalId','الحركة الأصلية',[],'id');
+  original.disabled=true;
+  const assetLocation=extra('assetLocation','موقع الأصل','text','');
+  extra('clientAccount','حساب / مرجع العميل','text','آخر');
+  const charge=extra('chargeClient','يُحمّل على العميل','checkbox',true);
+  const company=row.querySelector('[name=companyBears]');
+  charge.onchange=()=>{if(charge.checked)company.checked=false};
+  company.onchange=()=>{if(company.checked)charge.checked=false};
+  type.onchange=async()=>{
+    const selectedType=type.value;
+    const linked=linkedReturnTypes.includes(selectedType);
+    const paired=selectedType==='UNLINKED_PURCHASE_RETURN';
+    const projectType=paired||['PROJECT_EXPENSE','CUSTOMER_RECEIPT','CUSTOMER_REFUND','CUSTOMER_DIRECT_PAYMENT','PROJECT_INVOICE'].includes(type.value);
+    for(const option of payment.options)option.disabled=paired&&option.value!=='CASH';
+    if(paired&&payment.value!=='CASH'){payment.value='CASH';payment.onchange()}
+    client.required=project.required=projectType;
+    client.disabled=project.disabled=!projectType;
+    party.disabled=!['PROJECT_EXPENSE','CUSTOMER_DIRECT_PAYMENT'].includes(type.value);
+    agreement.disabled=party.disabled;
+    row.querySelector('[name=finishItemId]').disabled=party.disabled;
+    payment.disabled=account.disabled=['CUSTOMER_DIRECT_PAYMENT','PROJECT_INVOICE','PURCHASE_RETURN_CREDIT'].includes(type.value);
+    payment.required=account.required=!payment.disabled;
+    employee.disabled=!['EMPLOYEE_LOAN','EMPLOYEE_LOAN_REPAYMENT','PAYROLL_PAYMENT','PARTNER_WITHDRAWAL','PARTNER_DEPOSIT'].includes(type.value);
+    employee.required=!employee.disabled;
+    expense.disabled=type.value!=='OPERATING_EXPENSE';expense.required=!expense.disabled;
+    target.disabled=type.value!=='INTERNAL_TRANSFER';target.required=!target.disabled;
+    assetLocation.disabled=type.value!=='FIXED_ASSET_PURCHASE';
+    charge.disabled=company.disabled=!['PROJECT_EXPENSE','CUSTOMER_DIRECT_PAYMENT'].includes(type.value);
+    original.required=linked;original.disabled=!linked;
+    for(const input of details.querySelectorAll('input'))input.disabled=paired;
+    evidence.disabled=linked||paired;
+    row.querySelector('[name=notes]').disabled=paired;
+    for(const input of row.querySelectorAll('input,select')){
+      if(input.disabled){if(input.type==='checkbox')input.checked=false;else input.value=''}
+    }
+    original.replaceChildren(new Option('اختيار…',''));
+    if(linked){
+      try{
+        returnSources ||= await call('return.options',{});
+        if(type.value!==selectedType||!row.isConnected)return;
+        const valid=returnSources.filter(x=>x.remaining>0&&(selectedType==='LINKED_CUSTOMER_REFUND'?
+          x.type==='CUSTOMER_RECEIPT':x.type!=='CUSTOMER_RECEIPT'&&(selectedType!=='PURCHASE_RETURN_CREDIT'||x.partyId)));
+        original.replaceChildren(...picker(valid,'id',x=>[x.date,x.projectName,x.description,'متاح '+x.remaining].filter(Boolean).join(' — ')).options);
+      }catch(error){statusBox.textContent=error.message}
+    }
+  };
+  const remove=document.createElement('button');remove.type='button';remove.textContent='إزالة';row.insertCell().append(remove);
+  remove.onclick=()=>{row.remove();invalidateApproval()};
+  function agreements(){
+    agreement.replaceChildren(new Option('اختيار…',''));
+    for(const item of lookups.agreements||[]){
+      if(item['الحالة']==='ACTIVE'&&item['معرف المشروع']===project.value&&item['معرف الطرف']===party.value){
+        agreement.add(new Option(item['الوصف']||item['معرف الاتفاق'],item['معرف الاتفاق']));
+      }
+    }
+  }
+  client.onchange=()=>{
+    project.replaceChildren(...picker((lookups.projects||[]).filter(p=>!client.value||p['معرف العميل']===client.value),'معرف المشروع').options);
+    agreements();
+  };
+  project.onchange=()=>{const p=lookups.projects.find(p=>p['معرف المشروع']===project.value);if(p)client.value=p['معرف العميل'];agreements()};
+  party.onchange=agreements;
+  payment.onchange=()=>{
+    const rows=lookups.cashAccounts.filter(x=>x['النوع']===(payment.value==='CASH'?'CASH':'BANK'));
+    account.replaceChildren(...picker(rows,'معرف الحساب النقدي').options);
+  };
+  if(draft.text){
+    const names=['الاسم الإنجليزي','الاسم العربي','الاسم'];
+    const matchedClient=findBatchMatch(draft.text,lookups.clients,'معرف العميل',names);
+    const candidates=(lookups.projects||[]).filter(p=>!matchedClient||p['معرف العميل']===matchedClient['معرف العميل']);
+    const matchedProject=findBatchMatch(draft.text,candidates,'معرف المشروع',names);
+    const clientId=matchedProject?.['معرف العميل']||matchedClient?.['معرف العميل'];
+    if(clientId){client.value=clientId;client.onchange()}
+    if(matchedProject){project.value=matchedProject['معرف المشروع'];project.onchange()}
+    const matchedParty=findBatchMatch(draft.text,lookups.parties,'معرف الطرف',names);
+    if(matchedParty){party.value=matchedParty['معرف الطرف'];agreements()}
+    const matchedItem=findBatchMatch(draft.text,lookups.finishItems,'معرف البند',[...names,'الوصف']);
+    if(matchedItem)row.querySelector('[name=finishItemId]').value=matchedItem['معرف البند'];
+  }
+  if(draft.bank){
+    const matching=lookups.cashAccounts.filter(x=>x['النوع']==='BANK'&&
+      String(x['الاسم']).toUpperCase().split(/[^A-Z]+/).includes(draft.bank));
+    if(matching.length===1){payment.value='BANK_TRANSFER';payment.onchange();account.value=matching[0]['معرف الحساب النقدي']}
+  }
+}
+document.querySelector('#batch-editor').addEventListener('input',invalidateApproval);
+document.querySelector('#add-row').onclick=()=>{try{invalidateApproval();addRow()}catch(error){statusBox.textContent=error.message}};
+document.querySelector('#split-text').onclick=()=>{
+  const lines=document.querySelector('#source-text').value.trim().split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+  if(lines.length>50){statusBox.textContent='قسّم النص إلى دفعات أصغر من 50 سطرًا.';return}
+  invalidateApproval();document.querySelector('#rows tbody').replaceChildren();
+  let date='',bank='';
+  const drafts=[];
+  for(const text of lines){
+    const normalized=text.replace(/[٠-٩]/g,d=>String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)));
+    const match=normalized.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if(match){date=match[3]+'-'+match[2].padStart(2,'0')+'-'+match[1].padStart(2,'0');continue}
+    if(/^(CIB|QNB)$/i.test(normalized)){bank=normalized.toUpperCase();continue}
+    const amount=normalized.match(/^(?:فاتور[هة]\s+ب\s?قيم[هة]\s+)?(\d+(?:\.\d{1,2})?)(?=\s|ج|$)/);
+    const explicitBank=normalized.match(/\b(CIB|QNB)\s*$/i)?.[1]?.toUpperCase();
+    const last=drafts.at(-1);
+    if(!amount&&last?.awaitingDescription){
+      last.text+=' '+text;last.awaitingDescription=false;if(explicitBank)last.bank=explicitBank;
+    }else{
+      drafts.push({date,bank:explicitBank||bank,amount:amount?.[1],text,
+        awaitingDescription:Boolean(amount&&/^فاتور[هة]/.test(normalized))});
+    }
+  }
+  drafts.forEach(addRow);
+  statusBox.textContent='راجع المسودة والاختيارات المقترحة. كمّل الحقول الفارغة قبل المعاينة.';
+};
+document.querySelector('#batch-editor').onsubmit=async event=>{
+  event.preventDefault();
+  if(!event.target.reportValidity())return;
+  controls.disabled=true;invalidateApproval();
+  try{
+    const rows=[];
+    for(const row of document.querySelector('#rows tbody').rows){
+      const get=name=>row.querySelector('[name="'+name+'"]');
+      const item={};
+      for(const name of ['transactionDate','type','clientId','projectId','partyId','finishItemId','agreementId','paymentMethod','description','notes','employeeId','expenseItemId','assetLocation','clientAccount'])item[name]=get(name).disabled?'':get(name).value;
+      item.amount=Number(get('amount').value);item.currency='EGP';item.exchangeRate=1;
+      item.companyBears=get('companyBears').checked;item.chargeClient=get('chargeClient').checked;
+      for(const name of ['quantity','unit','reference','taxInvoiceNumber','taxInvoiceDate'])item[name]=get(name).value;
+      if(get('markupRate').value!=='')item.markupRate=Number(get('markupRate').value)/100;
+      item.taxable=get('taxable').checked;item.taxRate=Number(get('taxRate').value)/100;
+      item.noEvidenceConfirmation=get('noEvidenceConfirmation').checked;
+      const incoming=['CUSTOMER_RECEIPT','EMPLOYEE_LOAN_REPAYMENT','PARTNER_DEPOSIT','BANK_INTEREST','PURCHASE_RETURN_CASH'].includes(item.type);
+      if(item.type==='CUSTOMER_DIRECT_PAYMENT')item.paymentMethod='DIRECT_CLIENT';
+      else if(!['PROJECT_INVOICE','PURCHASE_RETURN_CREDIT'].includes(item.type))item[incoming?'targetAccountId':'sourceAccountId']=get('accountId').value;
+      if(linkedReturnTypes.includes(item.type)){
+        item.originalId=get('originalId').value;
+        item.originalVersion=returnSources?.find(x=>x.id===item.originalId)?.version;
+      }
+      if(item.type==='INTERNAL_TRANSFER')item.targetAccountId=get('transferTargetId').value;
+      if(item.expenseItemId){
+        const expense=lookups.expenseItems.find(x=>x['معرف بند المصروف']===item.expenseItemId);
+        item.expenseGroup=expense['المجموعة الرئيسية'];item.expenseSubcategory=expense['البند الفرعي'];
+      }
+      const evidence=get('evidence'),attachment=evidence.files[0];
+      if(attachment){
+        if(attachment.size>5*1024*1024)throw Error('المرفق أكبر من 5 ميجابايت.');
+        if(!evidence.dataset.documentId){
+          const data=await new Promise((resolve,reject)=>{
+            const reader=new FileReader();
+            reader.onload=()=>resolve(String(reader.result).split(',')[1]);
+            reader.onerror=()=>reject(Error('تعذر قراءة المرفق.'));
+            reader.readAsDataURL(attachment);
+          });
+          const result=await call('document.upload',{name:attachment.name,mimeType:attachment.type,base64:data});
+          evidence.dataset.documentId=result['معرف المستند'];
+          if(!evidence.dataset.documentId)throw Error('تعذر تأكيد رفع المرفق.');
+        }
+        item.documentId=evidence.dataset.documentId;
+      }
+      rows.push(item);
+    }
+    const result=await call('directConnection.preview',{transactions:rows});
+    transactions=result.transactions;showRows(transactions);approve.disabled=false;
+    statusBox.textContent='راجع '+result.count+' حركة بإجمالي '+(result.totalMinorUnits/100).toFixed(2)+' جنيه، ثم اعتمد.';
+  }catch(error){statusBox.textContent=error.message}
+  finally{controls.disabled=false}
+};
+async function call(action,payload){
+  const sessionToken=localStorage.getItem('foozix.session');
+  if(!sessionToken)throw Error('سجّل الدخول إلى FOOZIX من نفس المتصفح أولًا.');
+  const response=await fetch(endpoint,{method:'POST',credentials:'omit',cache:'no-store',headers:{'Content-Type':'text/plain;charset=UTF-8'},body:JSON.stringify({action,payload,sessionToken})});
+  const result=await response.json();
+  if(!response.ok||!result.ok)throw Error(result.messageAr||'تعذر تنفيذ الطلب.');
+  return result.data;
+}
+function showRows(rows){
+  const table=document.createElement('table'),head=table.createTHead().insertRow();
+  const label=(list,key,id)=>{
+    const item=lookups?.[list]?.find(x=>String(x[key])===String(id));
+    return item?.['الاسم العربي']||item?.['الاسم الإنجليزي']||item?.['الاسم']||item?.['الوصف']||id||'—';
+  };
+  for(const title of ['التاريخ','نوع الحركة','المشروع','العميل','المورد','البند','حساب الدفع','حساب الاستلام','البيان','الملاحظات','المرفق','المبلغ']){
+    const th=document.createElement('th');th.textContent=title;head.append(th);
+  }
+  const body=table.createTBody();
+  for(const row of rows){
+    const tr=body.insertRow();
+    const type=lookups?.movementTypes?.find(([id])=>id===row.type)?.[1]||row.type;
+    for(const value of [row.transactionDate,type,label('projects','معرف المشروع',row.projectId),
+      label('clients','معرف العميل',row.clientId),label('parties','معرف الطرف',row.partyId),
+      label('finishItems','معرف البند',row.finishItemId),label('cashAccounts','معرف الحساب النقدي',row.sourceAccountId),
+      label('cashAccounts','معرف الحساب النقدي',row.targetAccountId),row.description,row.notes,row.documentId?'مرفق':'—',Number(row.amount).toFixed(2)]){
+      tr.insertCell().textContent=String(value||'');
+    }
+  }
+  preview.replaceChildren(table);
+}
+file.onchange=async()=>{
+  approve.disabled=true;execute.disabled=true;grantId=undefined;transactions=undefined;preview.replaceChildren();
+  const selected=file.files[0];if(!selected)return;
+  if(selected.size>50000){statusBox.textContent='حجم ملف الدفعة أكبر من المسموح.';return}
+  file.disabled=true;
+  try{
+    const data=JSON.parse(await selected.text());
+    const result=await call('directConnection.preview',{transactions:data.transactions});
+    transactions=result.transactions;
+    showRows(transactions);
+    statusBox.textContent='عدد الحركات '+result.count+'، الإجمالي '+(result.totalMinorUnits/100).toFixed(2)+' جنيه';
+    approve.disabled=false;
+  }catch(error){statusBox.textContent=error.message}
+  finally{file.disabled=false}
+};
+approve.onclick=async()=>{
+  approve.disabled=true;file.disabled=true;controls.disabled=true;
+  try{
+    const request=await call('directConnection.approval.begin',{transactions});
+    const proof=await navigator.credentials.get({publicKey:PublicKeyCredential.parseRequestOptionsFromJSON(request.options)});
+    const result=await call('directConnection.approval.finish',{transactions,id:request.id,proof:proof.toJSON()});
+    if(!result.verified)throw Error('تعذر تأكيد الاعتماد.');
+    grantId=result.id;execute.disabled=false;statusBox.textContent='تم اعتماد الدفعة. راجعها ثم اضغط تسجيل.';
+  }catch(error){statusBox.textContent=error.name==='NotAllowedError'?'تم إلغاء الاعتماد أو انتهت مهلته.':error.message;approve.disabled=false;file.disabled=false;controls.disabled=false}
+};
+execute.onclick=async()=>{
+  execute.disabled=true;
+  try{
+    const result=await call('directConnection.execute',{id:grantId});
+    if(!result.complete)throw Error('التسجيل لم يكتمل.');
+    statusBox.textContent='تم تسجيل '+result.results.length+' حركة.';
+    const list=document.createElement('ul');
+    for(const row of result.results){const item=document.createElement('li');item.textContent='الحركة '+row.transactionId+'، القيد '+row.journalId;list.append(item)}
+    preview.replaceChildren(list);
+  }catch(error){statusBox.textContent=error.message+' استخدم إعادة المحاولة لنفس الدفعة.';execute.textContent='إعادة محاولة نفس الدفعة';execute.disabled=false}
+};
+call('directConnection.lookups',{}).then(data=>{
+  lookups=data;controls.disabled=false;statusBox.textContent='أضف حركة أو الصق النص لتجهيز المسودة.';
+}).catch(error=>{statusBox.textContent=error.message});
+</script>
+</html>

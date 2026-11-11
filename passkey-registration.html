@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>تسجيل مفتاح المرور | FOOZIX</title>
+<style>
+  body{margin:0;background:#edf6f3;color:#142d26;font:1rem/1.65 system-ui,sans-serif}
+  main{box-sizing:border-box;max-width:32rem;margin:8vh auto;padding:2rem;background:white;border:1px solid #c6dcd5;border-radius:1rem}
+  h1{margin:.5rem 0;font-size:1.6rem}
+  button{width:100%;min-height:48px;border:0;border-radius:.6rem;background:#08634e;color:white;font:inherit;font-weight:bold}
+  button:disabled{background:#526861}
+  @media(max-width:36rem){main{margin:1rem}}
+</style>
+<main>
+  <strong>FOOZIX</strong>
+  <h1>تسجيل مفتاح المرور</h1>
+  <p>مفتاح المرور يتيح لك اعتماد الدفعات من هاتفك باستخدام البصمة أو رمز قفل الجهاز.</p>
+  <button id="google-enrollment" type="button" disabled>تأكيد حساب Google</button>
+  <button id="register" type="button" hidden disabled>تسجيل مفتاح المرور</button>
+  <p id="status" role="status">التسجيل غير متاح حتى ربط الصفحة بخدمة التحقق في FOOZIX.</p>
+</main>
+<script>
+  const button = document.querySelector('#register');
+  const signIn = document.querySelector('#google-enrollment');
+  const status = document.querySelector('#status');
+  function connectPasskeyRegistration(service) {
+    if (!window.isSecureContext || !window.PublicKeyCredential ||
+        typeof PublicKeyCredential.parseCreationOptionsFromJSON !== 'function' ||
+        typeof PublicKeyCredential.parseRequestOptionsFromJSON !== 'function') {
+      status.textContent = 'افتح الصفحة من متصفح حديث يدعم مفاتيح المرور عبر اتصال آمن.';
+      return;
+    }
+    status.textContent = 'اضغط على الزر واتبع تعليمات هاتفك.';
+    signIn.hidden = true;
+    button.hidden = false;
+    button.disabled = false;
+    button.onclick = async () => {
+      button.disabled = true;
+      status.textContent = 'جارٍ بدء التسجيل…';
+      try {
+        const enrollment = await service.begin();
+        const publicKey = PublicKeyCredential.parseCreationOptionsFromJSON(enrollment.options);
+        const credential = await navigator.credentials.create({publicKey});
+        const key = credential?.response.getPublicKey?.();
+        if (!key) throw new Error('Credential unavailable');
+        const proof = await navigator.credentials.get({publicKey: PublicKeyCredential.parseRequestOptionsFromJSON({
+          challenge: enrollment.proofChallenge, rpId: publicKey.rp.id, timeout: 120000,
+          allowCredentials: [{type: 'public-key', id: credential.id}], userVerification: 'required'
+        })});
+        const encodedKey = btoa(String.fromCharCode(...new Uint8Array(key))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        const result = await service.finish({
+          enrollmentId: enrollment.enrollmentId, credentialId: credential.id,
+          publicKey: encodedKey, proof: proof.toJSON()
+        });
+        if (result?.verified !== true) throw new Error('Verification failed');
+        status.textContent = 'تم تسجيل مفتاح المرور.';
+      } catch (error) {
+        status.textContent = error.name === 'NotAllowedError'
+          ? 'تم إلغاء الطلب أو انتهت مهلته. تقدر تحاول تاني.'
+          : 'تعذر تأكيد تسجيل مفتاح المرور. تقدر تحاول تاني.';
+        button.disabled = false;
+      }
+    };
+  }
+
+  const foozixOrigin = 'https://foozix-erp.github.io';
+  const apiEndpoint = 'https://script.google.com/macros/s/AKfycbxgMmDd9VtbtSFY8H_Jd-lFtDj8ToRRhpxfBqZAuSCqCEgAS9s4NJJpj_lw3mUPh9URbQ/exec';
+  if (location.origin === foozixOrigin && location.pathname === '/foozix-live-arte-divino/passkey-registration.html') {
+    const call = async (action, payload, sessionToken = '') => {
+      const response = await fetch(apiEndpoint, {
+        method: 'POST', credentials: 'omit', cache: 'no-store',
+        headers: {'Content-Type': 'text/plain;charset=UTF-8'},
+        body: JSON.stringify({action, payload, sessionToken})
+      });
+      const result = await response.json();
+      if (!response.ok || !result.ok) throw new Error('Enrollment unavailable');
+      return result.data;
+    };
+    const saved = sessionStorage.getItem('foozix.passkey.enrollment');
+    sessionStorage.removeItem('foozix.passkey.enrollment');
+    if (saved) {
+      const {token,ticket} = JSON.parse(saved);
+      connectPasskeyRegistration({
+        begin: () => call('directConnection.passkey.begin', {ticket}, token),
+        finish: payload => call('directConnection.passkey.finish', payload, token)
+      });
+    } else {
+      status.textContent = 'أكد حساب Google المصرح به لتسجيل المفتاح لأول مرة.';
+      signIn.disabled = false;
+      signIn.onclick = async () => {
+        signIn.disabled = true;
+        try {
+          const verifier = Array.from(crypto.getRandomValues(new Uint8Array(32)), b=>b.toString(16).padStart(2,'0')).join('');
+          const result = await call('auth.google.start', {browserVerifier:verifier,purpose:'passkey-enrollment'});
+          const url = new URL(result.url);
+          if (url.origin !== 'https://accounts.google.com' || url.pathname !== '/o/oauth2/v2/auth') throw new Error('Invalid destination');
+          sessionStorage.setItem('foozix.google.flow',JSON.stringify({
+            state:result.state,verifier,purpose:'passkey-enrollment',expires:Date.now()+600000
+          }));
+          location.assign(url.href);
+        } catch {
+          status.textContent = 'تعذر بدء التحقق من حساب Google.';
+          signIn.disabled = false;
+        }
+      };
+    }
+  }
+</script>
+</html>
