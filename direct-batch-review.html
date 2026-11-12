@@ -235,6 +235,46 @@ function cleanBatchDescription(text,records,labels){
   return text.split('').map((ch,index)=>spans.some(([start,end])=>index>=start&&index<end)?' ':ch).join('')
     .replace(/\s+/g,' ').replace(/^[\s،,:؛/—–-]+|[\s،,:؛/—–-]+$/g,'').trim();
 }
+function classifyBatchMovement(text, movementTypes){
+  const normalized=normalizeBatchSearch(text);
+  const has=pattern=>pattern.test(normalized);
+  const design=has(/(?:^| )(?:التصميم|تصميم|تصميمات|التصميمات|ديزاين|ديزين|design)(?: |$)/u);
+  const incoming=has(/(?:^| )(?:استلمنا|استلمت|استلام مبلغ|تحصيل|تم التحصيل|وصلنا|قبضنا)(?: |$)/u);
+  const outgoing=has(/(?:^| )(?:مصروف مشروع|دفع مورد|دفع مقاول|دفعنا|دفعنا للمصمم|اتدفع للمصمم|مشتريات|مون نقاشه|نقل مون)(?: |$)/u);
+  if(incoming&&outgoing)return '';
+  if(incoming)return 'CUSTOMER_RECEIPT';
+  if(outgoing)return 'PROJECT_EXPENSE';
+  if(design&&has(/(?:^| )دف(?:عه|عات)(?: |$)/u))return '';
+  const exact=findBatchMatch(text,(movementTypes||[]).map(([id,label])=>({id,label})),'id',['label']);
+  if(exact)return exact.id;
+  return has(/(?:^| )فاتوره(?: |$)/u)?'PROJECT_EXPENSE':'';
+}
+function batchFinishItem(text, items){
+  const normalized=normalizeBatchSearch(text);
+  const rules=[
+    [/(?:^| )(?:التصميم|تصميم|تصميمات|التصميمات|ديزاين|ديزين|design)(?: |$)/u,/^(?:التصميم|تصميم|تصميمات|التصميمات|ديزاين|ديزين|design)$/u],
+    [/مون نقاشه|جوتن|مشتريات دهانات/u,/^(?:مشتريات دهانات|الدهانات|دهانات|painting materials)$/u],
+    [/مشتريات كهرباء|مون كهرباء|خامات كهرباء/u,/^(?:مشتريات كهرباء|الكهرباء|كهرباء|electrical materials)$/u],
+    [/نقل مون|مصاريف نقل/u,/^(?:نقل|النقل|مصاريف نقل|transport)$/u],
+    [/محابس دفن|مشتريات سباكه/u,/^(?:مشتريات سباكه|السباكه|سباكه|plumbing materials)$/u],
+    [/مون تغليف|مون تقفيل|سيليكون|اديبوند/u,/^(?:مون|مون وخامات|مون وخمات|materials)$/u]
+  ];
+  const names=['الاسم العربي','الاسم الإنجليزي','الاسم','الوصف'];
+  for(const [phrase,label] of rules){
+    if(!phrase.test(normalized))continue;
+    const matches=(items||[]).filter(item=>names.some(name=>label.test(normalizeBatchSearch(item[name]))));
+    if(matches.length)return matches.length===1?matches[0]:undefined;
+  }
+  return findBatchMatch(text,items,'معرف البند',names);
+}
+function summarizeBatchDescription(text){
+  const normalized=text.replace(/^(?:(?:تم\s+)?(?:استلمنا|استلمت|استلام|تحصيل)|وصلنا|قبضنا|دفعنا)\s+(?:مبلغ\s+)?/u,'')
+    .replace(/^(?:مصروف مشروع|دفع مورد|دفع مقاول)\s*[:،–—-]?\s*/u,'')
+    .replace(/^فاتور[هة]\s+ب\s?قيم[هة](?=\s|$)/u,'فاتورة')
+    .replace(/(?:^|\s)(?:بتاريخ|تاريخ)\s+\d{1,2}[/-]\d{1,2}(?:[/-]\d{4})?(?=\s|$)/gu,' ')
+    .replace(/\s+(?:في|من|لدى|من\s+حساب|على\s+حساب)\s*$/u,'');
+  return normalized.replace(/\s+/g,' ').replace(/^[\s،,:؛/—–-]+|[\s،,:؛/—–-]+$/g,'').trim();
+}
 function addRow(draft={}){
   const body=document.querySelector('#rows tbody');
   if(body.rows.length>=50)throw Error('الحد الأقصى 50 حركة للدفعة.');
@@ -310,7 +350,15 @@ function addRow(draft={}){
     client.disabled=project.disabled=!projectType;
     party.disabled=!['PROJECT_EXPENSE','CUSTOMER_DIRECT_PAYMENT'].includes(type.value);
     agreement.disabled=party.disabled;
-    finish.disabled=party.disabled;
+    const designReceipt=type.value==='CUSTOMER_RECEIPT'&&/(?:تصميم|ديزاين|ديزين|design)/iu.test(draft.text||'');
+    const selectedFinish=finish.value;
+    const finishItems=lookups.finishItems||[];
+    const selectableItems=designReceipt?finishItems.filter(item=>
+      ['الاسم العربي','الاسم الإنجليزي'].some(key=>/تصميم|ديزاين|ديزين|design/iu.test(item[key]||''))):finishItems;
+    finish.replaceChildren(...picker(selectableItems,'معرف البند').options);
+    finish.value=selectedFinish;
+    finish.disabled=party.disabled&&!designReceipt;
+    if(!finish.disabled&&!party.disabled&&party.value)party.onchange();
     payment.disabled=account.disabled=['CUSTOMER_DIRECT_PAYMENT','PROJECT_INVOICE','PURCHASE_RETURN_CREDIT'].includes(type.value);
     payment.required=account.required=!payment.disabled;
     employee.disabled=!['EMPLOYEE_LOAN','EMPLOYEE_LOAN_REPAYMENT','PAYROLL_PAYMENT','PARTNER_WITHDRAWAL','PARTNER_DEPOSIT'].includes(type.value);
@@ -382,9 +430,8 @@ function addRow(draft={}){
   };
   type.onchange();
   if(draft.text){
-    const text=normalizeBatchSearch(draft.text);
-    if(/(?:^| )(?:تحصيل|استلمنا|استلمت|استلام مبلغ)(?: |$)/.test(text)){type.value='CUSTOMER_RECEIPT';type.onchange()}
-    else if(/(?:مصروف مشروع|دفع مورد|دفع مقاول|فاتور[هة]|مشتريات|مون نقاش|نقل مون)/.test(text)){type.value='PROJECT_EXPENSE';type.onchange()}
+    const suggestedType=classifyBatchMovement(draft.text,lookups.movementTypes);
+    if([...type.options].some(option=>option.value===suggestedType)){type.value=suggestedType;type.onchange()}
     const names=['الاسم الإنجليزي','الاسم العربي','الاسم'];
     const matchText=draft.description??draft.text;
     const matchedClient=findBatchMatch(matchText,lookups.clients,'معرف العميل',names);
@@ -398,7 +445,7 @@ function addRow(draft={}){
       if(description.dataset.edited)return;
       const selectedClient=lookups.clients.find(record=>record['معرف العميل']===client.value);
       const selectedProject=lookups.projects.find(record=>record['معرف المشروع']===project.value);
-      description.value=cleanBatchDescription(matchText,[selectedClient,selectedProject],names);
+      description.value=summarizeBatchDescription(cleanBatchDescription(matchText,[selectedClient,selectedProject],names));
     };
     description.addEventListener('input',()=>{description.dataset.edited='true'});
     client.addEventListener('change',cleanSelectedNames);
@@ -406,8 +453,8 @@ function addRow(draft={}){
     cleanSelectedNames();
     const matchedParty=findBatchMatch(draft.text,lookups.parties,'معرف الطرف',names);
     if(matchedParty&&!party.disabled){party.value=matchedParty['معرف الطرف'];party.onchange()}
-    const matchedItem=findBatchMatch(draft.text,lookups.finishItems,'معرف البند',[...names,'الوصف']);
-    if(matchedItem)row.querySelector('[name=finishItemId]').value=matchedItem['معرف البند'];
+    const matchedItem=batchFinishItem(matchText,lookups.finishItems);
+    if(matchedItem&&!finish.disabled)finish.value=matchedItem['معرف البند'];
   }
   if(draft.bank){
     const matching=lookups.cashAccounts.filter(x=>x['النوع']==='BANK'&&
@@ -442,6 +489,13 @@ function parseBatchText(raw){
       if(explicitBank)bank=explicitBank;
       pending=null;continue;
     }
+    const inlineDate=text.match(/(?:^|\s)(?:بتاريخ\s+)?(\d{1,2})[/-](\d{1,2})[/-](\d{4})(?=\s|$)/u);
+    let rowDate=date;
+    if(inlineDate){
+      const candidate=inlineDate[3]+'-'+inlineDate[2].padStart(2,'0')+'-'+inlineDate[1].padStart(2,'0');
+      const checked=new Date(candidate+'T00:00:00Z');
+      if(Number.isFinite(checked.getTime())&&checked.toISOString().slice(0,10)===candidate)rowDate=candidate;
+    }
     const amountFirst=text.match(/^(?:[-•]\s*)?(\d+(?:\.\d{1,2})?)(?=\s|ج|$)/u);
     const invoice=text.match(/فاتور[هة]\s+ب\s?قيم[هة]\s+(\d+(?:\.\d{1,2})?)(?=\s|ج|$)/u);
     const receipt=text.match(/(?:(?:تحصيل|استلمنا|استلمت|(?:تم\s+)?استلام)\s+(?:مبلغ\s+)?)(\d+(?:\.\d{1,2})?)(?=\s|ج|$)/u);
@@ -461,7 +515,8 @@ function parseBatchText(raw){
       description=text.slice(0,start)+text.slice(start+amount.length).replace(/^\s*(?:جنيه(?:ا)?|ج\.?|EGP)(?=\s|$)/iu,'');
     }
     description=description.replace(/\b(?:CIB|QNB)\b/gi,' ').replace(/^[\s•–—-]+/u,'').replace(/\s+/g,' ').trim();
-    const draft={date,bank:explicitBank||bank,amount,text:line,description};
+    if(inlineDate&&rowDate&&rowDate===inlineDate[3]+'-'+inlineDate[2].padStart(2,'0')+'-'+inlineDate[1].padStart(2,'0'))description=description.replace(inlineDate[0].trim(),' ').replace(/\s+/g,' ').trim();
+    const draft={date:rowDate,bank:explicitBank||bank,amount,text:line,description};
     drafts.push(draft);
     pending=isInvoice&&amount?draft:null;
   }
