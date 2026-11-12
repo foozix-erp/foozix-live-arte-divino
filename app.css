@@ -1021,7 +1021,7 @@ body.v5-shell .sidebar > .nav > button[data-view] {
   padding-block: 4px!important;
 }
 body.v5-shell .sidebar > .v5-drawer-actions {
-  margin-block-start: 8px!important;
+  margin-block-start: auto!important;
   grid-template-columns: repeat(2, minmax(0, 1fr))!important;
   gap: 6px!important;
 }
@@ -1052,8 +1052,10 @@ body.v5-shell .sidebar > .v5-drawer-actions > #logout {
   font-weight: 700!important;
 }
 body.v5-shell .sidebar > .super-foozi-launcher:not(.active) {
-  height: clamp(150px, 37dvh, 300px)!important;
-  margin-block-start: auto!important;
+  height: clamp(150px, 43dvh, 328px)!important;
+  max-width: calc(100% - 26px);
+  margin: 6px 0 8px!important;
+  margin-inline-end: 26px!important;
 }
 body.v5-shell .workspace-tab .workspace-tab-select {
   justify-content: flex-start!important;
@@ -1070,7 +1072,7 @@ body.v5-shell .workspace-tab .workspace-tab-close {
     min-height: 38px!important;
   }
   body.v5-shell .sidebar > .super-foozi-launcher:not(.active) {
-    height: clamp(125px, 33dvh, 258px)!important;
+    height: clamp(125px, 37dvh, 288px)!important;
   }
 }
 
