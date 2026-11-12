@@ -82,6 +82,10 @@ main{width:min(100% - 1.5rem,76rem);box-sizing:border-box}fieldset{min-inline-si
 <th>المبلغ</th><th>طريقة الدفع</th><th>الحساب</th><th>البيان</th><th>الملاحظات</th><th>على حساب الشركة</th><th>تفاصيل إضافية</th><th>إزالة</th>
 </tr></thead><tbody></tbody></table></div>
 <button type="submit">مراجعة الدفعة</button>
+<div id="batch-warnings" hidden>
+  <p id="batch-warning-text" role="alert"></p>
+  <label><input id="batch-warning-reviewed" type="checkbox"> راجعت الفروق مع المصدر وصحّحت المسودة عند الحاجة</label>
+</div>
 </section>
 </div>
 </fieldset></form>
@@ -253,7 +257,7 @@ function classifyBatchMovement(text, movementTypes){
   const has=pattern=>pattern.test(normalized);
   const design=has(/(?:^| )(?:التصميم|تصميم|تصميمات|التصميمات|ديزاين|ديزين|design)(?: |$)/u);
   const incoming=has(/(?:^| )(?:استلمنا|استلمت|استلام مبلغ|تحصيل|تم التحصيل|وصلنا|قبضنا)(?: |$)/u);
-  const outgoing=has(/(?:^| )(?:مصروف مشروع|دفع مورد|دفع مقاول|دفعنا|دفعنا للمصمم|اتدفع للمصمم|مشتريات|مون نقاشه|نقل مون)(?: |$)/u);
+  const outgoing=has(/(?:^| )(?:مصروف مشروع|دفع مورد|دفع مقاول|دفعنا|دفعنا للمصمم|اتدفع للمصمم|مشتريات|مون نقاشه|نقل مون|دف(?:عه|عات) زجاج|محابس دفن|ايجار شقه|اجور عمال)(?: |$)/u);
   if(incoming&&outgoing)return '';
   if(incoming)return 'CUSTOMER_RECEIPT';
   if(outgoing)return 'PROJECT_EXPENSE';
@@ -493,13 +497,15 @@ async function addRow(draft={}){
   if(draft.text){
     const baseline=classifyBatchMovement(draft.text,lookups.movementTypes);
     const learned=matchBatchLearning(draft.description??draft.text);
-    const suggestedType=baseline||learned?.type;
+    const suggestedType=baseline||learned?.type||(draft.projectContext&&draft.amount?'PROJECT_EXPENSE':'');
     if([...type.options].some(option=>option.value===suggestedType)){type.value=suggestedType;type.onchange()}
     const names=['الاسم الإنجليزي','الاسم العربي','الاسم'];
     const matchText=draft.description??draft.text;
     const matchedClient=findBatchMatch(matchText,lookups.clients,'معرف العميل',names);
     const candidates=(lookups.projects||[]).filter(p=>!matchedClient||p['معرف العميل']===matchedClient['معرف العميل']);
-    const matchedProject=findBatchMatch(matchText,candidates,'معرف المشروع',names);
+    const matchedProject=findBatchMatch(matchText,candidates,'معرف المشروع',names)||
+      (draft.projectContext&&(!matchedClient||matchedClient['معرف العميل']===draft.projectContext['معرف العميل'])?
+        draft.projectContext:undefined);
     const clientId=matchedProject?.['معرف العميل']||matchedClient?.['معرف العميل'];
     if(clientId){client.value=clientId;client.onchange()}
     if(matchedProject){project.value=matchedProject['معرف المشروع'];project.onchange()}
@@ -514,6 +520,10 @@ async function addRow(draft={}){
     client.addEventListener('change',cleanSelectedNames);
     project.addEventListener('change',cleanSelectedNames);
     cleanSelectedNames();
+    if(/(?:^| )(?:علي حسابنا|علي حساب الشركه|تتحمله الشركه)(?: |$)/u.test(normalizeBatchSearch(matchText))&&!company.disabled){
+      company.checked=true;
+      company.onchange();
+    }
     const matchedParty=findBatchMatch(draft.text,lookups.parties,'معرف الطرف',names);
     if(matchedParty&&!party.disabled){party.value=matchedParty['معرف الطرف'];party.onchange()}
     const matchedItem=batchFinishItem(matchText,lookups.finishItems);
@@ -563,22 +573,30 @@ const batchEditor=document.querySelector('#batch-editor');
 batchEditor.addEventListener('input',()=>{invalidateApproval();saveBatchDraft()});
 batchEditor.addEventListener('change',saveBatchDraft);
 document.querySelector('#add-row').onclick=async()=>{try{invalidateApproval();await addRow();saveBatchDraft()}catch(error){statusBox.textContent=error.message}};
-function parseBatchText(raw){
+function parseBatchText(raw, projects=[]){
   const drafts=[], totals=[];
-  const lines=String(raw).split(/\r?\n/).map(line=>line.trim()).filter(Boolean);
-  let date='', bank='', pending=null;
+  const lines=String(raw).split(/\r?\n/).flatMap(line=>{
+    // Only explicit separators followed by a new amount or payment phrase start another row.
+    return line.split(/[;؛](?=\s*(?:(?:[-•]\s*)?[0-9٠-٩۰-۹][0-9٠-٩۰-۹,.٬٫]*\s*(?:جنيه|ج|\s+\p{L})|(?:استلمنا|استلمت|تحصيل|دفعنا)\s+))/u);
+  }).map(line=>line.trim()).filter(Boolean);
+  const groups=[];
+  let date='', bank='', pending=null, projectContext, group, lastMovement;
   for(const line of lines){
     const text=line.replace(/[٠-٩۰-۹]/g,d=>String('٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹'.indexOf(d)%10))
       .replace(/(?<=\d)[,٬](?=\d{3}(?:\D|$))/g,'').replace(/٫/g,'.');
-    if(/^[-—–_ـ]{3,}$/.test(text)){pending=null;continue}
+    if(/^[-—–_ـ]{3,}$/.test(text)){pending=null;projectContext=group=lastMovement=undefined;continue}
     const dated=text.match(/^(?:بتاريخ\s+)?(\d{1,2})[/-](\d{1,2})(?:[/-](\d{4}))?$/);
     if(dated){
       const year=dated[3]||date.slice(0,4);
       const candidate=year+'-'+dated[2].padStart(2,'0')+'-'+dated[1].padStart(2,'0');
       const checked=new Date(candidate+'T00:00:00Z');
-      date=year&&Number.isFinite(checked.getTime())&&checked.toISOString().slice(0,10)===candidate?candidate:'';
-      const last=drafts.at(-1);
-      if(/^بتاريخ\s+/u.test(text)&&last&&!last.date)last.date=date;
+      const parsedDate=year&&Number.isFinite(checked.getTime())&&checked.toISOString().slice(0,10)===candidate?candidate:'';
+      if(/^بتاريخ\s+/u.test(text)){
+        if(lastMovement)lastMovement.date=parsedDate;
+      }else{
+        date=parsedDate;
+        projectContext=group=lastMovement=undefined;
+      }
       pending=null;continue;
     }
     const explicitBank=text.match(/\b(CIB|QNB)\b/i)?.[1]?.toUpperCase();
@@ -586,6 +604,10 @@ function parseBatchText(raw){
     if(/^(?:(?:CIB|QNB)\s+)?(?:[إأا]جمالي|المجموع)/iu.test(text)){
       totals.push(line);
       if(explicitBank)bank=explicitBank;
+      const expected=text.match(/(?:[إأا]جمالي|المجموع)\s*[:：]?\s*(\d+(?:\.\d{1,2})?)/iu)?.[1];
+      group=expected?{label:line,expected:Number(expected),rows:[]}:undefined;
+      if(group)groups.push(group);
+      projectContext=lastMovement=undefined;
       pending=null;continue;
     }
     const inlineDate=text.match(/(?:^|\s)(?:بتاريخ\s+)?(\d{1,2})[/-](\d{1,2})[/-](\d{4})(?=\s|$)/u);
@@ -602,6 +624,11 @@ function parseBatchText(raw){
     const amountMatch=amountFirst||invoice||receipt||(currencyAmounts.length===1?currencyAmounts[0]:null);
     const amount=amountMatch?.[1];
     const isInvoice=/فاتور[هة]/u.test(text);
+    if(!amount&&!pending){
+      const heading=text.match(/^(?:مشروع\s*[:：]\s*)?(.+?)\s*[-–—]\s*(.+)$/u);
+      const project=heading&&findBatchMatch(heading[1],projects,'معرف المشروع',['الاسم العربي','الاسم الإنجليزي','الاسم']);
+      if(project){projectContext=project;lastMovement=undefined;continue}
+    }
     if(!amount&&pending){
       pending.text+=' '+line;
       pending.description+=' '+line.replace(/\b(?:CIB|QNB)\b/gi,' ').trim();
@@ -615,19 +642,42 @@ function parseBatchText(raw){
     }
     description=description.replace(/\b(?:CIB|QNB)\b/gi,' ').replace(/^[\s•–—-]+/u,'').replace(/\s+/g,' ').trim();
     if(inlineDate&&rowDate&&rowDate===inlineDate[3]+'-'+inlineDate[2].padStart(2,'0')+'-'+inlineDate[1].padStart(2,'0'))description=description.replace(inlineDate[0].trim(),' ').replace(/\s+/g,' ').trim();
-    const draft={date:rowDate,bank:explicitBank||bank,amount,text:line,description};
+    const explicitProject=findBatchMatch(description,projects,'معرف المشروع',['الاسم العربي','الاسم الإنجليزي','الاسم']);
+    const inheritedProject=explicitProject?undefined:projectContext;
+    if(explicitProject&&projectContext&&explicitProject['معرف المشروع']!==projectContext['معرف المشروع']){
+      projectContext=group=undefined;
+    }
+    const draft={date:rowDate,bank:explicitBank||bank,amount,text:line,description,projectContext:inheritedProject};
     drafts.push(draft);
+    lastMovement=amount?draft:undefined;
+    if(group&&amount)group.rows.push(draft);
     pending=isInvoice&&amount?draft:null;
   }
-  return {drafts,totals};
+  const discrepancies=groups.flatMap(({label,expected,rows})=>{
+    const actual=rows.reduce((sum,row)=>sum+Math.round(Number(row.amount)*100),0)/100;
+    return actual===expected?[]:[{label,expected,actual,difference:(Math.round(actual*100)-Math.round(expected*100))/100}];
+  });
+  return {drafts,totals,discrepancies};
 }
+const warningPanel=document.querySelector('#batch-warnings');
+const warningText=document.querySelector('#batch-warning-text');
+const warningReviewed=document.querySelector('#batch-warning-reviewed');
+const warningKey='foozix.batch.warnings.v1';
+try{warningText.textContent=sessionStorage.getItem(warningKey)||'';warningPanel.hidden=!warningText.textContent}catch{}
 document.querySelector('#split-text').onclick=async()=>{
-  const parsed=parseBatchText(document.querySelector('#source-text').value);
+  const parsed=parseBatchText(document.querySelector('#source-text').value,lookups.projects);
   const body=document.querySelector('#rows tbody');
   if(!parsed.drafts.length){statusBox.textContent='الصق نص الحركات أولاً.';return}
   if(body.rows.length+parsed.drafts.length>50){statusBox.textContent='الحد الأقصى 50 حركة في الدفعة. أزل صفوفًا أو قسّم النص.';return}
   invalidateApproval();
   for(const row of parsed.drafts)await addRow(row);
+  if(parsed.discrepancies.length){
+    const warnings=parsed.discrepancies.map(d=>d.label+' — التفاصيل '+d.actual+'، الفرق '+d.difference+'.');
+    warningText.textContent=[warningText.textContent,...warnings].filter(Boolean).join(' ');
+    warningPanel.hidden=false;
+    warningReviewed.checked=false;
+    try{sessionStorage.setItem(warningKey,warningText.textContent)}catch{}
+  }
   saveBatchDraft();
   const incomplete=parsed.drafts.filter(row=>!row.date||!row.amount).length;
   statusBox.textContent='اتضاف '+parsed.drafts.length+' صف للمسودة.'+
@@ -636,6 +686,7 @@ document.querySelector('#split-text').onclick=async()=>{
 };
 document.querySelector('#batch-editor').onsubmit=async event=>{
   event.preventDefault();
+  if(!warningPanel.hidden&&!warningReviewed.checked){warningReviewed.focus();return}
   for(const field of event.target.querySelectorAll('input,select'))if(field.willValidate&&!field.validity.valid){const panel=field.closest('details');if(panel)panel.open=true}
   if(!event.target.reportValidity())return;
   controls.disabled=true;invalidateApproval();
@@ -766,7 +817,7 @@ execute.onclick=async()=>{
     const result=await call('directConnection.execute',{id:grantId});
     if(!result.complete||!Array.isArray(result.results)||!result.results.length||result.results.some(row=>!row.transactionId||!row.journalId))throw Error('الخادم لم يرجع أرقام الحركات والقيود لتأكيد التسجيل.');
     grantId=undefined;
-    try{sessionStorage.removeItem(batchDraftKey);sessionStorage.removeItem(batchAttemptKey)}catch{}
+    try{sessionStorage.removeItem(batchDraftKey);sessionStorage.removeItem(batchAttemptKey);sessionStorage.removeItem(warningKey)}catch{}
     statusBox.textContent='تم تسجيل '+result.results.length+' حركة. أرقام الحركات والقيود ظاهرة في النتيجة.';
     const list=document.createElement('ul');
     for(const row of result.results){const item=document.createElement('li');item.textContent='الحركة '+row.transactionId+'، القيد '+row.journalId;list.append(item)}
