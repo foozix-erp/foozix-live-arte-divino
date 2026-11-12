@@ -1080,6 +1080,32 @@ body.v5-shell .workspace-tab .workspace-tab-close {
 .workspace-refresh,.page-refresh-button{font-size:0!important}.workspace-refresh::before,.page-refresh-button::before{content:"↻";display:inline-block;font-size:1.25rem}.workspace-refresh.is-refreshing,.page-refresh-button.is-refreshing{animation:none!important}.workspace-refresh.is-refreshing::before,.page-refresh-button.is-refreshing::before{animation:workspaceRefreshSpin .8s linear infinite}
 
 /* Match the drawer to the usable viewport in browser and installed windows. */
+.transaction-entry-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: .45rem 1rem;
+  margin-block-end: .7rem;
+}
+.transaction-entry-header h1 { margin-block: 0!important; }
+.batch-entry-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 42px;
+  padding: .35rem .85rem;
+  border: 1px solid #a8cec6;
+  border-radius: 10px;
+  background: #e5f4ef;
+  color: #075b4c;
+  font-weight: 650;
+  text-decoration: none;
+}
+.batch-entry-link:hover, .batch-entry-link:focus-visible {
+  background: #d3eee6;
+  outline: 2px solid #0a7564;
+  outline-offset: 2px;
+}
 body.v5-shell .sidebar {
   box-sizing: border-box;
   height: auto!important;

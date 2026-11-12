@@ -74,6 +74,28 @@ function findBatchMatch(text,rows,id,labels){
   }
   return matches.size===1?matches.values().next().value:undefined;
 }
+function cleanBatchDescription(text, records, labels){
+  const words=[...text.matchAll(/[\p{L}\p{N}\p{M}ـ]+/gu)];
+  const normalized=words.map(word=>normalizeBatchSearch(word[0]));
+  const spans=[];
+  for(const record of records.filter(Boolean)){
+    for(const label of labels){
+      const name=normalizeBatchSearch(record[label]);
+      if(name.length<3)continue;
+      const tokens=name.split(' ');
+      for(let i=0;i+tokens.length<=words.length;i++){
+        if(!tokens.every((token,j)=>normalized[i+j]===token))continue;
+        const last=words[i+tokens.length-1];
+        spans.push([words[i].index,last.index+last[0].length]);
+      }
+    }
+  }
+  if(!spans.length)return text;
+  const remaining=Array.from(text.split(''),(character,index)=>
+    spans.some(([start,end])=>index>=start&&index<end)?' ':character).join('');
+  return remaining.replace(/(?:^|[\s،,:؛-])(?:لموقع|لمشروع|مشروع|موقع|للعميل|العميل)(?=\s*(?:[،,:؛-]|$))/gu,' ')
+    .replace(/\s+/g,' ').replace(/^[\s،,:؛/—–-]+|[\s،,:؛/—–-]+$/g,'').trim();
+}
 function addRow(draft={}){
   const body=document.querySelector('#rows tbody');
   if(body.rows.length>=50)throw Error('الحد الأقصى 50 حركة للدفعة.');
@@ -197,6 +219,8 @@ function addRow(draft={}){
     const clientId=matchedProject?.['معرف العميل']||matchedClient?.['معرف العميل'];
     if(clientId){client.value=clientId;client.onchange()}
     if(matchedProject){project.value=matchedProject['معرف المشروع'];project.onchange()}
+    const linkedClient=(lookups.clients||[]).find(record=>record['معرف العميل']===clientId);
+    row.querySelector('[name=description]').value=cleanBatchDescription(draft.text,[linkedClient,matchedProject],names);
     const matchedParty=findBatchMatch(draft.text,lookups.parties,'معرف الطرف',names);
     if(matchedParty){party.value=matchedParty['معرف الطرف'];agreements()}
     const matchedItem=findBatchMatch(draft.text,lookups.finishItems,'معرف البند',[...names,'الوصف']);
