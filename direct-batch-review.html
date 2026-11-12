@@ -300,7 +300,26 @@ function matchBatchLearning(text){
   const matches=batchLearning().filter(rule=>(' '+phrase+' ').includes(' '+rule.phrase+' '));
   return matches.length===1?matches[0]:undefined;
 }
-function addRow(draft={}){
+const batchDraftKey='foozix.batch.draft.v1';
+const batchAttemptKey='foozix.batch.attempt.v1';
+function saveBatchDraft(){
+  try{
+    const rows=[...document.querySelector('#rows tbody').rows].map(row=>Object.fromEntries(
+      [...row.querySelectorAll('input[name],select[name]')].filter(field=>field.type!=='file'&&!field.disabled)
+        .map(field=>[field.name,field.type==='checkbox'?field.checked:field.value])
+    ));
+    sessionStorage.setItem(batchDraftKey,JSON.stringify({text:document.querySelector('#source-text').value,rows}));
+  }catch{}
+}
+async function restoreBatchDraft(){
+  let draft;
+  try{draft=JSON.parse(sessionStorage.getItem(batchDraftKey)||'null')}catch{return false}
+  if(!draft||!Array.isArray(draft.rows))return false;
+  document.querySelector('#source-text').value=draft.text||'';
+  for(const saved of draft.rows.slice(0,50))await addRow({saved});
+  return Boolean(draft.text||draft.rows.length);
+}
+async function addRow(draft={}){
   const body=document.querySelector('#rows tbody');
   if(body.rows.length>=50)throw Error('الحد الأقصى 50 حركة للدفعة.');
   const row=body.insertRow();
@@ -375,7 +394,7 @@ function addRow(draft={}){
     client.disabled=project.disabled=!projectType;
     party.disabled=!['PROJECT_EXPENSE','CUSTOMER_DIRECT_PAYMENT'].includes(type.value);
     agreement.disabled=party.disabled;
-    const designReceipt=type.value==='CUSTOMER_RECEIPT'&&/(?:تصميم|ديزاين|ديزين|design)/iu.test(draft.text||'');
+    const designReceipt=type.value==='CUSTOMER_RECEIPT'&&/(?:تصميم|ديزاين|ديزين|design)/iu.test(draft.text||draft.saved?.description||'');
     const selectedFinish=finish.value;
     const finishItems=lookups.finishItems||[];
     const selectableItems=designReceipt?finishItems.filter(item=>
@@ -415,7 +434,7 @@ function addRow(draft={}){
   };
   const remove=document.createElement('button');remove.type='button';remove.textContent='إزالة';row.insertCell().append(remove);remove.parentElement.className='remove-cell';remove.className='remove';
   const detailCell=row.insertCell();detailCell.className='row-details';detailCell.append(details);
-  remove.onclick=()=>{row.remove();invalidateApproval()};
+  remove.onclick=()=>{row.remove();invalidateApproval();saveBatchDraft()};
   function agreements(){
     agreement.replaceChildren(new Option('اختيار…',''));
     for(const item of lookups.agreements||[]){
@@ -453,6 +472,23 @@ function addRow(draft={}){
     const rows=lookups.cashAccounts.filter(x=>x['النوع']===(payment.value==='CASH'?'CASH':'BANK'));
     account.replaceChildren(...picker(rows,'معرف الحساب النقدي').options);
   };
+  if(draft.saved){
+    const fields=draft.saved;
+    const set=(name,value)=>{
+      const field=row.querySelector('[name="'+name+'"]');
+      if(!field||field.disabled||field.type==='file'||value===undefined)return;
+      if(field.type==='checkbox')field.checked=Boolean(value);else field.value=value;
+    };
+    set('type',fields.type);await type.onchange();
+    set('clientId',fields.clientId);client.onchange();
+    set('projectId',fields.projectId);project.onchange();
+    set('partyId',fields.partyId);party.onchange();
+    set('paymentMethod',fields.paymentMethod);if(payment.value)payment.onchange();
+    for(const [name,value] of Object.entries(fields)){
+      if(!['type','clientId','projectId','partyId','paymentMethod'].includes(name))set(name,value);
+    }
+    return;
+  }
   type.onchange();
   if(draft.text){
     const baseline=classifyBatchMovement(draft.text,lookups.movementTypes);
@@ -523,8 +559,10 @@ function addRow(draft={}){
     if(matching.length===1){payment.value='BANK_TRANSFER';payment.onchange();account.value=matching[0]['معرف الحساب النقدي']}
   }
 }
-document.querySelector('#batch-editor').addEventListener('input',invalidateApproval);
-document.querySelector('#add-row').onclick=()=>{try{invalidateApproval();addRow()}catch(error){statusBox.textContent=error.message}};
+const batchEditor=document.querySelector('#batch-editor');
+batchEditor.addEventListener('input',()=>{invalidateApproval();saveBatchDraft()});
+batchEditor.addEventListener('change',saveBatchDraft);
+document.querySelector('#add-row').onclick=async()=>{try{invalidateApproval();await addRow();saveBatchDraft()}catch(error){statusBox.textContent=error.message}};
 function parseBatchText(raw){
   const drafts=[], totals=[];
   const lines=String(raw).split(/\r?\n/).map(line=>line.trim()).filter(Boolean);
@@ -583,13 +621,14 @@ function parseBatchText(raw){
   }
   return {drafts,totals};
 }
-document.querySelector('#split-text').onclick=()=>{
+document.querySelector('#split-text').onclick=async()=>{
   const parsed=parseBatchText(document.querySelector('#source-text').value);
   const body=document.querySelector('#rows tbody');
   if(!parsed.drafts.length){statusBox.textContent='الصق نص الحركات أولاً.';return}
   if(body.rows.length+parsed.drafts.length>50){statusBox.textContent='الحد الأقصى 50 حركة في الدفعة. أزل صفوفًا أو قسّم النص.';return}
   invalidateApproval();
-  parsed.drafts.forEach(addRow);
+  for(const row of parsed.drafts)await addRow(row);
+  saveBatchDraft();
   const incomplete=parsed.drafts.filter(row=>!row.date||!row.amount).length;
   statusBox.textContent='اتضاف '+parsed.drafts.length+' صف للمسودة.'+
     (incomplete?' '+incomplete+' صف يحتاج تاريخًا أو مبلغًا.':'')+
@@ -721,19 +760,29 @@ approve.onclick=async()=>{
 execute.onclick=async()=>{
   if(!grantId)return;
   execute.disabled=true;
+  try{sessionStorage.setItem(batchAttemptKey,grantId)}catch{}
   statusBox.textContent='جارٍ تسجيل الدفعة. استنى تأكيد الخادم قبل إعادة الإرسال.';
   try{
     const result=await call('directConnection.execute',{id:grantId});
     if(!result.complete||!Array.isArray(result.results)||!result.results.length||result.results.some(row=>!row.transactionId||!row.journalId))throw Error('الخادم لم يرجع أرقام الحركات والقيود لتأكيد التسجيل.');
     grantId=undefined;
+    try{sessionStorage.removeItem(batchDraftKey);sessionStorage.removeItem(batchAttemptKey)}catch{}
     statusBox.textContent='تم تسجيل '+result.results.length+' حركة. أرقام الحركات والقيود ظاهرة في النتيجة.';
     const list=document.createElement('ul');
     for(const row of result.results){const item=document.createElement('li');item.textContent='الحركة '+row.transactionId+'، القيد '+row.journalId;list.append(item)}
     preview.replaceChildren(list);
   }catch(error){statusBox.textContent=batchFailure(error)+' لو هتعيد المحاولة استخدم نفس الدفعة من الزر هنا.';execute.textContent='إعادة محاولة نفس الدفعة';execute.disabled=error.code==='DIRECT_APPROVAL_EXPIRED'}
 };
-call('directConnection.lookups',{}).then(data=>{
-  lookups=data;controls.disabled=false;statusBox.textContent='أضف حركة أو الصق النص لتجهيز المسودة.';
+call('directConnection.lookups',{}).then(async data=>{
+  lookups=data;const restored=await restoreBatchDraft();
+  try{grantId=sessionStorage.getItem(batchAttemptKey)||undefined}catch{}
+  if(grantId){
+    file.disabled=true;execute.disabled=false;execute.textContent='متابعة نفس الدفعة';
+    statusBox.textContent='فيه محاولة تسجيل سابقة. تابع نفس الدفعة لمعرفة نتيجتها.';
+    return;
+  }
+  controls.disabled=false;
+  statusBox.textContent=restored?'رجعت مسودتك. راجع المرفقات وسجل الحركات لو كنت ضغطت تسجيل قبل التحديث.':'أضف حركة أو الصق النص لتجهيز المسودة.';
 }).catch(error=>{statusBox.textContent=error.message});
 </script>
 </html>
