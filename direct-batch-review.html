@@ -23,7 +23,7 @@ main{width:min(100% - 1.5rem,76rem);box-sizing:border-box}fieldset{min-inline-si
 @media(max-width:55rem){#preview table,#preview tbody{display:block}#preview thead{display:none}#preview tr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border-bottom:1px solid #d3e1dc}#preview td{display:block;border:0}#preview td::before{content:attr(data-label);display:block;font-weight:700}}
 #rows,#rows tbody{display:block}#rows thead{display:none}
 #rows tr{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:.55rem .7rem;padding:.8rem;margin-block:.6rem;background:#f5faf8;border:1px solid #d3e1dc;border-radius:.7rem}
-#rows td{display:block;min-width:0;padding:0;border:0}#rows label{display:grid;gap:.2rem;font-size:.86rem}#rows input:not([type=checkbox]),#rows select{width:100%;min-width:0;max-width:100%;padding:.35rem .5rem}
+#rows td[hidden]{display:none}#rows td{display:block;min-width:0;padding:0;border:0}#rows label{display:grid;gap:.2rem;font-size:.86rem}#rows input:not([type=checkbox]),#rows select{width:100%;min-width:0;max-width:100%;padding:.35rem .5rem}
 #rows .wide{grid-column:span 5}#rows .row-details{grid-column:1/-1}#rows .remove-cell{display:flex;justify-content:end;align-items:end}#rows .remove{justify-self:end;align-self:end;padding:.35rem .65rem;background:#fff;color:#8c2533;border:1px solid #e4c5ca}
 .details-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.55rem .7rem;padding-block:.6rem}
 @media(max-width:55rem){#rows tr{grid-template-columns:repeat(3,minmax(0,1fr))}#rows .wide{grid-column:span 2}.details-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -72,60 +72,144 @@ function normalizeBatchSearch(text){
     .replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/[٠-٩۰-۹]/g,d=>String('٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹'.indexOf(d)%10))
     .replace(/[^\p{L}\p{N}]+/gu,' ').trim();
 }
-function batchNameVariants(value){
+const projectAliases=[
+  "mv|mountain view|mountainview|ماونتن فيو|ماونتين فيو|ماونتن ڤيو",
+  "midtown|mid town|ميد تاون|ميدتاون",
+  "hyde park|hyd park|هايد بارك",
+  "palm hills|بالم هيلز",
+  "october hills|اكتوبر هيلز",
+  "joulz|جولز",
+  "emerald|اميرالد|ايميرالد",
+  "granda|جراندا",
+  "life|لايف",
+  "al andalus|andalus|الاندلس|اندلس",
+  "al yasmin|الياسمين",
+  "banafseg|البنفسج",
+  "galleria|جاليريا",
+  "hap town|هابتاون|هاب تاون",
+  "heliopolis|هليوبوليس",
+  "jannaty|جنتي",
+  "june|جون",
+  "karma|كرمه",
+  "la vista city|لافيستا سيتي",
+  "lakeview|ليك فيو",
+  "madinaty|مدينتي",
+  "marina|مارينا",
+  "mivida|ميفيدا",
+  "nosour|النسور",
+  "obour|العبور",
+  "ofok|افق",
+  "oriana|orianas|اوريانا",
+  "patio|باتيو",
+  "qoronfel|qoronfels|qoronfil|القرنفل|قرنفل",
+  "rehab|الرحاب|رحاب",
+  "sarai|سراي",
+  "sodic|سوديك",
+  "somfy|سومفي",
+  "south academy|جنوب الاكاديميه",
+  "square|سكوير",
+  "stone|ستون",
+  "residence|res|ريزيدنس",
+  "the hub|ذا هب",
+  "taj city|تاج سيتي",
+  "taj|تاج",
+  "west golf|ويست جولف",
+  "grand heights|جراند هايتس",
+  "towny|تاوني",
+  "new giza|نيو جيزه",
+  "regents park|ريجنتس بارك",
+  "sawary|صواري",
+  "lotus|اللوتس",
+  "mohammedia|المحمديه",
+  "hadayek al ahram|حدايق الاهرام|حدائق الاهرام",
+  "borooj|البروج",
+  "katameya|القطاميه",
+  "dreamland|دريم لاند",
+  "el shorouk|الشروق",
+  "new capital|العاصمه الاداريه",
+  "narges|النرجس",
+  "ahly bank|البنك الاهلي",
+  "first settlement|التجمع الاول",
+  "zayed|زايد",
+  "ivilla|i villa|اي فيلا",
+  "villa|فيلا",
+  "apartment|apart|app|شقه",
+  "duplex|دوبلكس|دوبليكس",
+  "design|تصميم",
+  "purchases|مشتريات",
+  "renovation|تجديد",
+  "clinic|عياده",
+  "facade|واجهه",
+  "historical|تاريخي"
+].map(group=>group.split('|').map(normalizeBatchSearch));
+function batchNameVariants(value,isProject=false){
   const name=normalizeBatchSearch(value);
-  const projectAliases=[
-    [/\bmid\s*town\b/g,'ميد تاون'],[/\bhy(?:de|d)\s*park\b/g,'هايد بارك'],
-    [/\bpalm\s*hills\b/g,'بالم هيلز'],[/\boctober\s*hills\b/g,'اكتوبر هيلز'],
-    [/\bmountain\s*view\b/g,'ماونتن فيو'],[/\bjoulz\b/g,'جولز'],
-    [/\bemerald\b/g,'اميرالد'],[/\bgranda\b/g,'جراندا']
-  ];
-  const localized=projectAliases.reduce((text,[pattern,replacement])=>text.replace(pattern,replacement),name);
-  return [...new Set([name,localized])].filter(x=>x.length>=3);
-}
-function findBatchMatch(text,rows,id,labels){
-  const query=' '+normalizeBatchSearch(text)+' ';
-  const matches=new Map();
-  for(const record of rows||[]){
-    for(const label of [id,...labels]){
-      if(batchNameVariants(record[label]).some(name=>query.includes(' '+name+' '))){
-        matches.set(record[id],record);
-        break;
-      }
-    }
+  if(!isProject)return name.length>=3?[name]:[];
+  if(!name)return [];
+  const words=name.split(' ');
+  let variants=[''];
+  for(let i=0;i<words.length;){
+    const group=projectAliases.find(group=>group.some(alias=>words.slice(i,i+alias.split(' ').length).join(' ')===alias));
+    const match=group?.find(alias=>words.slice(i,i+alias.split(' ').length).join(' ')===alias);
+    variants=variants.flatMap(prefix=>(group||[words[i]]).map(word=>(prefix+' '+word).trim()));
+    i+=match?match.split(' ').length:1;
   }
-  return matches.size===1?matches.values().next().value:undefined;
+  const names=new Set([name,...variants]);
+  for(const variant of variants){
+    names.add(variant.replace(/ (?:ivilla|i villa|اي فيلا|villa|فيلا|apartment|apart|app|شقه)$/u,''));
+    if(/^(?:joulz villa|جولز فيلا) 325$/u.test(variant)){names.add('جولز 32 5');names.add('joulz 32 5')}
+  }
+  return [...names].filter(name=>name.length>=2);
 }
-function cleanBatchDescription(text, records, labels){
+function batchNameSpans(text,names){
   const words=[...text.matchAll(/[\p{L}\p{N}\p{M}ـ]+/gu)];
   const normalized=words.map(word=>normalizeBatchSearch(word[0]));
   const spans=[];
-  for(const record of records.filter(Boolean)){
-    for(const name of labels.flatMap(label=>batchNameVariants(record[label]))){
-      const tokens=name.split(' ');
-      for(let i=0;i+tokens.length<=words.length;i++){
-        if(!tokens.every((token,j)=>normalized[i+j]===token))continue;
-        const last=words[i+tokens.length-1];
-        spans.push([words[i].index,last.index+last[0].length]);
-      }
+  for(const name of names){
+    const tokens=name.split(' ');
+    for(let i=0;i+tokens.length<=words.length;i++){
+      if(!['','ب','ل','لل'].some(prefix=>normalized[i]===prefix+tokens[0]))continue;
+      if(!tokens.slice(1).every((token,j)=>normalized[i+j+1]===token))continue;
+      const last=words[i+tokens.length-1];
+      spans.push([words[i].index,last.index+last[0].length]);
     }
   }
-  if(!spans.length)return text;
-  const remaining=Array.from(text.split(''),(character,index)=>
-    spans.some(([start,end])=>index>=start&&index<end)?' ':character).join('');
-  return remaining.replace(/(?:^|[\s،,:؛-])(?:لموقع|لمشروع|مشروع|موقع|للعميل|العميل)(?=\s*(?:[،,:؛-]|$))/gu,' ')
+  return spans;
+}
+function findBatchMatch(text,rows,id,labels){
+  const hits=[];
+  for(const record of rows||[]){
+    if(!record[id])continue;
+    const names=[...batchNameVariants(record[id]),...labels.flatMap(label=>batchNameVariants(record[label],id==='معرف المشروع'))];
+    for(const [start,end] of batchNameSpans(text,names))hits.push({record,start,end});
+  }
+  const distinct=hits.filter(hit=>!hits.some(other=>other.start<=hit.start&&other.end>=hit.end&&
+    (other.start<hit.start||other.end>hit.end)));
+  const matches=new Map(distinct.map(hit=>[hit.record[id],hit.record]));
+  return matches.size===1?matches.values().next().value:undefined;
+}
+function cleanBatchDescription(text,records,labels){
+  const names=records.filter(Boolean).flatMap(record=>[
+    ...labels.flatMap(label=>batchNameVariants(record[label],Boolean(record['معرف المشروع']))),
+    ...batchNameVariants(record['معرف المشروع']||record['معرف العميل'])
+  ]);
+  const spans=batchNameSpans(text,names).map(([start,end])=>{
+    const cue=text.slice(0,start).match(/(?:^|\s)(?:(?:في|من|لدى)\s+)?(?:مشروع|المشروع|بمشروع|بالمشروع|لمشروع|موقع|الموقع|لموقع|بموقع|للعميل|العميل|عميل)\s*[:：]?\s*$/u);
+    return [cue?cue.index:start,end];
+  });
+  return text.split('').map((ch,index)=>spans.some(([start,end])=>index>=start&&index<end)?' ':ch).join('')
     .replace(/\s+/g,' ').replace(/^[\s،,:؛/—–-]+|[\s،,:؛/—–-]+$/g,'').trim();
 }
 function addRow(draft={}){
   const body=document.querySelector('#rows tbody');
   if(body.rows.length>=50)throw Error('الحد الأقصى 50 حركة للدفعة.');
   const row=body.insertRow();
-  const labels={transactionDate:'التاريخ',type:'نوع الحركة',clientId:'العميل',projectId:'المشروع',partyId:'المورد',finishItemId:'البند',agreementId:'الاتفاق',amount:'المبلغ',paymentMethod:'طريقة الدفع',accountId:'الحساب',description:'البيان',notes:'الملاحظات',companyBears:'على حساب الشركة'};
+  const labels={expenseItemId:'بند المصروف التشغيلي',transactionDate:'التاريخ',type:'نوع الحركة',clientId:'العميل',projectId:'المشروع',partyId:'المورد',finishItemId:'البند',agreementId:'الاتفاق',amount:'المبلغ',paymentMethod:'طريقة الدفع',accountId:'الحساب',description:'البيان',notes:'الملاحظات',companyBears:'على حساب الشركة'};
   const optional=new Map();
   const put=(name,input)=>{
     input.name=name;
     const label=document.createElement('label');label.append(labels[name],input);
-    if(['partyId','finishItemId','agreementId','notes','companyBears'].includes(name))optional.set(name,label);
+    if(['notes','companyBears'].includes(name))optional.set(name,label);
     else{const cell=row.insertCell();if(name==='description')cell.className='wide';cell.append(label)}
     return input;
   };
@@ -135,7 +219,7 @@ function addRow(draft={}){
   const client=put('clientId',picker(lookups.clients,'معرف العميل'));client.required=true;
   const project=put('projectId',picker(lookups.projects,'معرف المشروع'));project.required=true;
   const party=put('partyId',picker(lookups.parties,'معرف الطرف'));
-  put('finishItemId',picker(lookups.finishItems,'معرف البند'));
+  const finish=put('finishItemId',picker(lookups.finishItems,'معرف البند'));
   const agreement=put('agreementId',picker([],'معرف الاتفاق'));
   const amount=field('amount','number',draft.amount);amount.min='.01';amount.step='.01';amount.required=true;
   const payment=put('paymentMethod',picker([{id:'BANK_TRANSFER',name:'تحويل بنكي'},{id:'CASH',name:'نقدي'},{id:'CHEQUE',name:'شيك'}],'id',x=>x.name));payment.required=true;
@@ -144,7 +228,7 @@ function addRow(draft={}){
   field('notes','text','');
   put('companyBears',document.createElement('input')).type='checkbox';
   const details=document.createElement('details'),summary=document.createElement('summary');
-  summary.textContent='المورد والبند والاتفاق والتفاصيل الإضافية';
+  summary.textContent='التفاصيل الإضافية';
   const detailFields=document.createElement('div');detailFields.className='details-grid';
   detailFields.append(...optional.values());details.append(summary,detailFields);
   const extra=(name,label,type,value)=>{
@@ -170,7 +254,7 @@ function addRow(draft={}){
     wrapper.textContent=label;input.name=name;wrapper.append(input);detailFields.append(wrapper);return input;
   }
   const employee=extraPicker('employeeId','الموظف / الشريك',lookups.employees,'معرف الموظف');
-  const expense=extraPicker('expenseItemId','بند المصروف',lookups.expenseItems,'معرف بند المصروف');
+  const expense=put('expenseItemId',picker(lookups.expenseItems,'معرف بند المصروف'));
   const target=extraPicker('transferTargetId','الحساب المستلم للتحويل',lookups.cashAccounts,'معرف الحساب النقدي');
   const original=extraPicker('originalId','الحركة الأصلية',[],'id');
   original.disabled=true;
@@ -191,15 +275,18 @@ function addRow(draft={}){
     client.disabled=project.disabled=!projectType;
     party.disabled=!['PROJECT_EXPENSE','CUSTOMER_DIRECT_PAYMENT'].includes(type.value);
     agreement.disabled=party.disabled;
-    row.querySelector('[name=finishItemId]').disabled=party.disabled;
+    finish.disabled=party.disabled;
     payment.disabled=account.disabled=['CUSTOMER_DIRECT_PAYMENT','PROJECT_INVOICE','PURCHASE_RETURN_CREDIT'].includes(type.value);
     payment.required=account.required=!payment.disabled;
     employee.disabled=!['EMPLOYEE_LOAN','EMPLOYEE_LOAN_REPAYMENT','PAYROLL_PAYMENT','PARTNER_WITHDRAWAL','PARTNER_DEPOSIT'].includes(type.value);
     employee.required=!employee.disabled;
     expense.disabled=type.value!=='OPERATING_EXPENSE';expense.required=!expense.disabled;
+    for(const field of [party,agreement,finish,expense])field.closest('td').hidden=field.disabled;
     target.disabled=type.value!=='INTERNAL_TRANSFER';target.required=!target.disabled;
     assetLocation.disabled=type.value!=='FIXED_ASSET_PURCHASE';
+    const chargeWasDisabled=charge.disabled;
     charge.disabled=company.disabled=!['PROJECT_EXPENSE','CUSTOMER_DIRECT_PAYMENT'].includes(type.value);
+    if(chargeWasDisabled&&!charge.disabled)charge.checked=true;
     original.required=linked;original.disabled=!linked;
     for(const input of details.querySelectorAll('input'))input.disabled=paired;
     evidence.disabled=linked||paired;
@@ -234,26 +321,56 @@ function addRow(draft={}){
     agreements();
   };
   project.onchange=()=>{const p=lookups.projects.find(p=>p['معرف المشروع']===project.value);if(p)client.value=p['معرف العميل'];agreements()};
-  party.onchange=agreements;
+  party.onchange=()=>{
+    const selected=finish.value;
+    const vendor=(lookups.parties||[]).find(item=>item['معرف الطرف']===party.value);
+    let capabilities=[];
+    try{
+      const raw=vendor?.['قدرات العمل'];
+      const entries=Array.isArray(raw)?raw:JSON.parse(raw||'[]');
+      if(Array.isArray(entries))capabilities=entries.map(entry=>entry?.finishItemId).filter(Boolean).map(String);
+    }catch{}
+    for(const agreement of lookups.agreements||[]){
+      if(party.value&&String(agreement['معرف الطرف'])===party.value&&agreement['الحالة']==='ACTIVE'){
+        capabilities.push(String(agreement['معرف بند التشطيب']||''));
+      }
+    }
+    const items=lookups.finishItems||[];
+    const matching=items.filter(item=>capabilities.includes(String(item['معرف البند'])));
+    finish.replaceChildren(...picker(matching.length?matching:items,'معرف البند').options);
+    finish.value=[...finish.options].some(option=>option.value===selected)?selected:'';
+    agreements();
+  };
   payment.onchange=()=>{
     const rows=lookups.cashAccounts.filter(x=>x['النوع']===(payment.value==='CASH'?'CASH':'BANK'));
     account.replaceChildren(...picker(rows,'معرف الحساب النقدي').options);
   };
+  type.onchange();
   if(draft.text){
     const text=normalizeBatchSearch(draft.text);
     if(/(?:^| )(?:تحصيل|استلمنا|استلمت|استلام مبلغ)(?: |$)/.test(text)){type.value='CUSTOMER_RECEIPT';type.onchange()}
-    else if(/(?:فاتور[هة]|مشتريات|مون نقاش|نقل مون)/.test(text)){type.value='PROJECT_EXPENSE';type.onchange()}
+    else if(/(?:مصروف مشروع|دفع مورد|دفع مقاول|فاتور[هة]|مشتريات|مون نقاش|نقل مون)/.test(text)){type.value='PROJECT_EXPENSE';type.onchange()}
     const names=['الاسم الإنجليزي','الاسم العربي','الاسم'];
-    const matchedClient=findBatchMatch(draft.text,lookups.clients,'معرف العميل',names);
+    const matchText=draft.description??draft.text;
+    const matchedClient=findBatchMatch(matchText,lookups.clients,'معرف العميل',names);
     const candidates=(lookups.projects||[]).filter(p=>!matchedClient||p['معرف العميل']===matchedClient['معرف العميل']);
-    const matchedProject=findBatchMatch(draft.text,candidates,'معرف المشروع',names);
+    const matchedProject=findBatchMatch(matchText,candidates,'معرف المشروع',names);
     const clientId=matchedProject?.['معرف العميل']||matchedClient?.['معرف العميل'];
     if(clientId){client.value=clientId;client.onchange()}
     if(matchedProject){project.value=matchedProject['معرف المشروع'];project.onchange()}
-    const linkedClient=(lookups.clients||[]).find(record=>record['معرف العميل']===clientId);
-    row.querySelector('[name=description]').value=cleanBatchDescription(draft.description??draft.text,[linkedClient,matchedProject],names);
+    const description=row.querySelector('[name=description]');
+    const cleanSelectedNames=()=>{
+      if(description.dataset.edited)return;
+      const selectedClient=lookups.clients.find(record=>record['معرف العميل']===client.value);
+      const selectedProject=lookups.projects.find(record=>record['معرف المشروع']===project.value);
+      description.value=cleanBatchDescription(matchText,[selectedClient,selectedProject],names);
+    };
+    description.addEventListener('input',()=>{description.dataset.edited='true'});
+    client.addEventListener('change',cleanSelectedNames);
+    project.addEventListener('change',cleanSelectedNames);
+    cleanSelectedNames();
     const matchedParty=findBatchMatch(draft.text,lookups.parties,'معرف الطرف',names);
-    if(matchedParty&&!party.disabled){party.value=matchedParty['معرف الطرف'];agreements()}
+    if(matchedParty&&!party.disabled){party.value=matchedParty['معرف الطرف'];party.onchange()}
     const matchedItem=findBatchMatch(draft.text,lookups.finishItems,'معرف البند',[...names,'الوصف']);
     if(matchedItem)row.querySelector('[name=finishItemId]').value=matchedItem['معرف البند'];
   }
