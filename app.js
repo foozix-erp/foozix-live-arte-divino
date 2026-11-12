@@ -1492,7 +1492,15 @@ function v5FinalizeDrawer_(){
   if(launcher&&!launcher.classList.contains('active')&&launcher.parentElement!==side)side.appendChild(launcher);
   let actions=side.querySelector('.v5-drawer-actions');if(!actions){actions=document.createElement('div');actions.className='v5-drawer-actions'}
   if(side.lastElementChild!==actions)side.appendChild(actions);
-  [lang,logout].filter(Boolean).forEach(button=>{button.classList.add('v5-drawer-action');actions.appendChild(button)});
+  const settingsButton=side.querySelector('button[data-view="settings"]');
+  if(lang){
+    lang.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/></svg><span></span>';
+    lang.lastElementChild.textContent=t('language');
+  }
+  [settingsButton,lang,logout].filter(Boolean).forEach(button=>{
+    button.classList.add('v5-drawer-action');
+    actions.appendChild(button);
+  });
   const mark=side.querySelector('.v5-foozix-mark'),powered=side.querySelector('.v5-powered');if(powered)powered.innerHTML='Powered by <b>FOOZIX</b>';
   if(mark&&powered&&!mark.parentElement.classList.contains('v5-foozix-lockup')){const lockup=document.createElement('span');lockup.className='v5-foozix-lockup';mark.before(lockup);lockup.append(mark,powered)}
   const avatar=top?.querySelector('.v5-avatar i'),name=state.lang==='ar'?(state.profile?.nameAr||state.profile?.nameEn):(state.profile?.nameEn||state.profile?.nameAr);
