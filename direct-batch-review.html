@@ -142,7 +142,10 @@ const projectAliases=[
   "heliopolis|هليوبوليس",
   "jannaty|جنتي",
   "june|جون",
-  "karma|كرمه",
+  "karma|كرمه|كارما",
+  "badyas|بديع",
+  "kitchen|مطبخ",
+  "new|جديده|جديد",
   "la vista city|لافيستا سيتي",
   "lakeview|ليك فيو",
   "madinaty|مدينتي",
@@ -194,9 +197,13 @@ const projectAliases=[
   "facade|واجهه",
   "historical|تاريخي"
 ].map(group=>group.split('|').map(normalizeBatchSearch));
-function batchNameVariants(value,isProject=false){
+const batchClientAliases = {
+  'mostafa mohamed':['مصطفى محمد'],
+  'ehab atris':['إيهاب عتريس']
+};
+function batchNameVariants(value,isProject=false,isClient=false){
   const name=normalizeBatchSearch(value);
-  if(!isProject)return name.length>=3?[name]:[];
+  if(!isProject)return name.length>=3?[name,...(isClient?(batchClientAliases[name]||[]).map(normalizeBatchSearch):[])]:[];
   if(!name)return [];
   const words=name.split(' ');
   let variants=[''];
@@ -208,6 +215,11 @@ function batchNameVariants(value,isProject=false){
   }
   const names=new Set([name,...variants]);
   for(const variant of variants){
+    if(/^(?:palm hills|بالم هيلز) 5 107$/u.test(variant))names.add('بالم هيلز التجمع');
+    const sarai=variant.match(/^(?:sarai|سراي) s(92|93)a (?:tamer|khaled)$/u);
+    if(sarai)names.add('سراي '+sarai[1]);
+    if(/^(?:qoronfel|القرنفل|قرنفل) (?:duplex|دوبلكس|دوبليكس) mr ehab atris$/u.test(variant))names.add('القرنفل دوبليكس');
+    if(/^(?:emerald|اميرالد) 10a (?:villa|فيلا)$/u.test(variant))names.add('اميرالد');
     names.add(variant.replace(/ (?:ivilla|i villa|اي فيلا|villa|فيلا|apartment|apart|app|شقه)$/u,''));
     if(/^(?:joulz villa|جولز فيلا) 325$/u.test(variant)){names.add('جولز 32 5');names.add('joulz 32 5')}
   }
@@ -232,7 +244,7 @@ function findBatchMatch(text,rows,id,labels){
   const hits=[];
   for(const record of rows||[]){
     if(!record[id])continue;
-    const names=[...batchNameVariants(record[id]),...labels.flatMap(label=>batchNameVariants(record[label],id==='معرف المشروع'))];
+    const names=[...batchNameVariants(record[id]),...labels.flatMap(label=>batchNameVariants(record[label],id==='معرف المشروع',id==='معرف العميل'))];
     for(const [start,end] of batchNameSpans(text,names))hits.push({record,start,end});
   }
   const distinct=hits.filter(hit=>!hits.some(other=>other.start<=hit.start&&other.end>=hit.end&&
@@ -242,7 +254,7 @@ function findBatchMatch(text,rows,id,labels){
 }
 function cleanBatchDescription(text,records,labels){
   const names=records.filter(Boolean).flatMap(record=>[
-    ...labels.flatMap(label=>batchNameVariants(record[label],Boolean(record['معرف المشروع']))),
+    ...labels.flatMap(label=>batchNameVariants(record[label],Boolean(record['معرف المشروع']),Boolean(record['معرف العميل']&&!record['معرف المشروع']))),
     ...batchNameVariants(record['معرف المشروع']||record['معرف العميل'])
   ]);
   const spans=batchNameSpans(text,names).map(([start,end])=>{
@@ -257,7 +269,7 @@ function classifyBatchMovement(text, movementTypes){
   const has=pattern=>pattern.test(normalized);
   const design=has(/(?:^| )(?:التصميم|تصميم|تصميمات|التصميمات|ديزاين|ديزين|design)(?: |$)/u);
   const incoming=has(/(?:^| )(?:استلمنا|استلمت|استلام مبلغ|تحصيل|تم التحصيل|وصلنا|قبضنا)(?: |$)/u);
-  const outgoing=has(/(?:^| )(?:مصروف مشروع|دفع مورد|دفع مقاول|دفعنا|دفعنا للمصمم|اتدفع للمصمم|مشتريات|مون نقاشه|نقل مون|دف(?:عه|عات) زجاج|محابس دفن|ايجار شقه|اجور عمال)(?: |$)/u);
+  const outgoing=has(/(?:^| )(?:مصروف مشروع|دفع مورد|دفع مقاول|دفعنا|دفعنا للمصمم|اتدفع للمصمم|مشتريات|مون نقاشه|نقل مون|دف(?:عه|عات) زجاج|محابس دفن|ايجار شقه|اجور عمال|مصنعي(?:ه|ات) (?:سباك|كهربائي))(?: |$)/u);
   if(incoming&&outgoing)return '';
   if(incoming)return 'CUSTOMER_RECEIPT';
   if(outgoing)return 'PROJECT_EXPENSE';
@@ -269,6 +281,14 @@ function classifyBatchMovement(text, movementTypes){
 function batchFinishItem(text, items){
   const normalized=normalizeBatchSearch(text);
   const rules=[
+    [/^نقل (?:مون|خامات|مواد)/u,/^النقل مون وخامات وتشوين$/u],
+    [/مصنعي(?:ه|ات) (?:سباك|السباكه|سباكه)/u,/^اعمال السباكه مصنعيات$/u],
+    [/مصنعي(?:ه|ات) (?:كهربائي|الكهرباء|كهرباء)/u,/^اعمال الكهرباء مصنعيات$/u],
+    [/مشتريات (?:سيراميك|السيراميك)/u,/^اعمال السيراميك مشتريات$/u],
+    [/مشتريات (?:مون|خامات)/u,/^اعمال البناء مشتريات المون والخامات$/u],
+    [/مون نقاشه|جوتن|مشتريات دهانات/u,/^اعمال الدهانات مشتريات$/u],
+    [/مشتريات كهرباء|مون كهرباء|خامات كهرباء/u,/^اعمال الكهرباء مشتريات$/u],
+    [/محابس دفن|مشتريات سباكه/u,/^اعمال السباكه مشتريات$/u],
     [/(?:^| )(?:التصميم|تصميم|تصميمات|التصميمات|ديزاين|ديزين|design)(?: |$)/u,/^(?:التصميم|تصميم|تصميمات|التصميمات|ديزاين|ديزين|design)$/u],
     [/مون نقاشه|جوتن|مشتريات دهانات/u,/^(?:مشتريات دهانات|الدهانات|دهانات|painting materials)$/u],
     [/مشتريات كهرباء|مون كهرباء|خامات كهرباء/u,/^(?:مشتريات كهرباء|الكهرباء|كهرباء|electrical materials)$/u],
