@@ -291,6 +291,10 @@ function classifyBatchMovement(text, movementTypes){
 }
 function batchFinishItem(text, items){
   const normalized=normalizeBatchSearch(text);
+  const names=['الاسم العربي','الاسم الإنجليزي','الاسم','الوصف'];
+  const exact=(items||[]).filter(item=>names.some(name=>
+    normalized&&normalizeBatchSearch(item[name])===normalized));
+  if(exact.length)return exact.length===1?exact[0]:undefined;
   const rules=[
     [/(?:^| )نقل (?:مون|خامات|مواد)(?: |$)/u,/^النقل مون وخامات وتشوين$/u],
     [/مصنعي(?:ه|ات) (?:سباك|السباكه|سباكه)/u,/^اعمال السباكه مصنعيات$/u],
@@ -308,7 +312,6 @@ function batchFinishItem(text, items){
     [/محابس دفن|مشتريات سباكه/u,/^(?:مشتريات سباكه|السباكه|سباكه|plumbing materials)$/u],
     [/مون تغليف|مون تقفيل|سيليكون|اديبوند/u,/^(?:مون|مون وخامات|مون وخمات|materials)$/u]
   ];
-  const names=['الاسم العربي','الاسم الإنجليزي','الاسم','الوصف'];
   for(const [phrase,label] of rules){
     if(!phrase.test(normalized))continue;
     const matches=(items||[]).filter(item=>names.some(name=>label.test(normalizeBatchSearch(item[name]))));
