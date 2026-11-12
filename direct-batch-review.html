@@ -273,6 +273,11 @@ function cleanBatchDescription(text,records,labels){
 function classifyBatchMovement(text, movementTypes){
   const normalized=normalizeBatchSearch(text);
   const has=pattern=>pattern.test(normalized);
+  const returns=findBatchMatch(text,(movementTypes||[]).filter(([id])=>
+    ['PURCHASE_RETURN_CASH','PURCHASE_RETURN_CREDIT','LINKED_CUSTOMER_REFUND','UNLINKED_PURCHASE_RETURN','CUSTOMER_REFUND'].includes(id)
+  ).map(([id,label])=>({id,label})),'id',['label']);
+  if(returns)return returns.id;
+  if(has(/(?:^| )مرتجع(?: |$)/u))return '';
   const design=has(/(?:^| )(?:التصميم|تصميم|تصميمات|التصميمات|ديزاين|ديزين|design)(?: |$)/u);
   const incoming=has(/(?:^| )(?:استلمنا|استلمت|استلام مبلغ|تحصيل|تم التحصيل|وصلنا|قبضنا)(?: |$)/u);
   const outgoing=has(/(?:^| )(?:مصروف مشروع|دفع مورد|دفع مقاول|و?دفعنا|دفعنا للمصمم|اتدفع للمصمم|مشتريات|مون نقاشه|نقل مون|دف(?:عه|عات) زجاج|محابس دفن|ايجار شقه|اجور عمال|مصنعي(?:ه|ات) (?:سباك|كهربائي))(?: |$)/u);
@@ -287,13 +292,13 @@ function classifyBatchMovement(text, movementTypes){
 function batchFinishItem(text, items){
   const normalized=normalizeBatchSearch(text);
   const rules=[
-    [/^نقل (?:مون|خامات|مواد)/u,/^النقل مون وخامات وتشوين$/u],
+    [/(?:^| )نقل (?:مون|خامات|مواد)(?: |$)/u,/^النقل مون وخامات وتشوين$/u],
     [/مصنعي(?:ه|ات) (?:سباك|السباكه|سباكه)/u,/^اعمال السباكه مصنعيات$/u],
     [/مصنعي(?:ه|ات) (?:كهربائي|الكهرباء|كهرباء)/u,/^اعمال الكهرباء مصنعيات$/u],
     [/مشتريات (?:سيراميك|السيراميك)/u,/^اعمال السيراميك مشتريات$/u],
+    [/مون نقاشه|جوتن|مشتريات دهانات/u,/^اعمال الدهانات مشتريات$/u],
     [/مشتريات (?:مون|خامات)/u,/^اعمال البناء مشتريات المون والخامات$/u],
     [/(?:^| )مون(?: |$).*(?:اسمنت|رمل)(?: |$)/u,/^اعمال البناء مشتريات المون والخامات$/u],
-    [/مون نقاشه|جوتن|مشتريات دهانات/u,/^اعمال الدهانات مشتريات$/u],
     [/مشتريات كهرباء|مون كهرباء|خامات كهرباء/u,/^اعمال الكهرباء مشتريات$/u],
     [/محابس دفن|مشتريات سباكه/u,/^اعمال السباكه مشتريات$/u],
     [/(?:^| )(?:التصميم|تصميم|تصميمات|التصميمات|ديزاين|ديزين|design)(?: |$)/u,/^(?:التصميم|تصميم|تصميمات|التصميمات|ديزاين|ديزين|design)$/u],
@@ -590,7 +595,10 @@ async function addRow(draft={}){
     };
     learning.append(phrase,saveRule,forget,feedback);details.append(learning);
   }
-  if(type.value==='INTERNAL_TRANSFER'&&draft.text){
+  if(type.value==='UNLINKED_PURCHASE_RETURN'){
+    const cashAccounts=[...account.options].filter(option=>option.value);
+    if(cashAccounts.length===1&&!draft.explicitBank&&!draft.bankConflict)account.value=cashAccounts[0].value;
+  }else if(type.value==='INTERNAL_TRANSFER'&&draft.text){
     const direction=draft.text.match(/(?:^|\s)من\s+(?:حساب\s+)?(CIB|QNB)\s+(?:إلى|الى|إلي|الي|ل)\s*(?:حساب\s+)?(CIB|QNB)\b/iu);
     const resolveBank=bank=>(lookups.cashAccounts||[]).filter(item=>
       item['النوع']==='BANK'&&String(item['الاسم']).toUpperCase().split(/[^A-Z]+/).includes(bank.toUpperCase()));
@@ -638,7 +646,11 @@ function parseBatchText(raw, projects=[]){
       }
       pending=null;continue;
     }
-    const explicitBank=text.match(/\b(CIB|QNB)\b/i)?.[1]?.toUpperCase();
+    const namedBanks=[...new Set([...text.matchAll(/\b(CIB|QNB)\b/gi)].map(match=>match[1].toUpperCase()))];
+    const directedTransfer=/تحويل داخلي/u.test(normalizeBatchSearch(text))&&
+      /(?:^|\s)من\s+(?:حساب\s+)?(?:CIB|QNB)\s+(?:إلى|الى|إلي|الي|ل)\s*(?:حساب\s+)?(?:CIB|QNB)\b/iu.test(text);
+    const bankConflict=namedBanks.length>1&&!directedTransfer;
+    const explicitBank=namedBanks.length===1?namedBanks[0]:'';
     if(/^(CIB|QNB)$/i.test(text)){bank=explicitBank;pending=null;continue}
     if(/^(?:(?:CIB|QNB)\s+)?(?:[إأا]جمالي|المجموع)/iu.test(text)){
       totals.push(line);
@@ -660,18 +672,25 @@ function parseBatchText(raw, projects=[]){
     const invoice=text.match(/فاتور[هة]\s+ب\s?قيم[هة]\s+(\d+(?:\.\d{1,2})?)(?=\s|ج|$)/u);
     const receipt=text.match(/(?:(?:تحصيل|استلمنا|استلمت|(?:تم\s+)?استلام)\s+(?:مبلغ\s+)?)(\d+(?:\.\d{1,2})?)(?=\s|ج|$)/u);
     const currencyAmounts=[...text.matchAll(/(?<![\p{L}\p{N}/])(\d+(?:\.\d{1,2})?)(?=\s*(?:جنيه(?:ا)?|ج\.?|EGP)(?:\s|$))/giu)];
-    const amountMatch=amountFirst||invoice||receipt||(currencyAmounts.length===1?currencyAmounts[0]:null);
+    const candidateAmounts=[amountFirst,invoice,receipt,...currencyAmounts].filter(Boolean);
+    const amountConflict=new Set(candidateAmounts.map(match=>Number(match[1]))).size>1;
+    const amountMatch=amountConflict?null:candidateAmounts[0];
     const amount=amountMatch?.[1];
     const isInvoice=/فاتور[هة]/u.test(text);
-    if(!amount&&!pending){
+    if(!amount&&!amountConflict&&!pending){
       const heading=text.match(/^(?:مشروع\s*[:：]\s*)?(.+?)\s*[-–—]\s*(.+)$/u);
       const project=heading&&findBatchMatch(heading[1],projects,'معرف المشروع',['الاسم العربي','الاسم الإنجليزي','الاسم']);
       if(project){projectContext=project;lastMovement=undefined;continue}
     }
-    if(!amount&&pending){
+    if(!amount&&!amountConflict&&pending){
       pending.text+=' '+line;
       pending.description+=' '+line.replace(/\b(?:CIB|QNB)\b/gi,' ').trim();
-      if(explicitBank)pending.bank=explicitBank;
+      const previousBank=pending.explicitBank;
+      if(bankConflict||(previousBank&&explicitBank&&previousBank!==explicitBank)){
+        pending.bank='';pending.bankConflict=true;
+      }else if(explicitBank&&!pending.bankConflict){
+        pending.bank=explicitBank;pending.explicitBank=explicitBank;
+      }
       pending=null;continue;
     }
     let description=text;
@@ -686,7 +705,8 @@ function parseBatchText(raw, projects=[]){
     if(explicitProject&&projectContext&&explicitProject['معرف المشروع']!==projectContext['معرف المشروع']){
       projectContext=group=undefined;
     }
-    const draft={date:rowDate,bank:explicitBank||bank,amount,text:line,description,projectContext:inheritedProject};
+    const draft={date:rowDate,bank:bankConflict?'':explicitBank||bank,amount,text:line,description,
+      projectContext:inheritedProject,explicitBank,bankConflict,amountConflict};
     drafts.push(draft);
     lastMovement=amount?draft:undefined;
     if(group&&amount)group.rows.push(draft);
@@ -718,9 +738,9 @@ document.querySelector('#split-text').onclick=async()=>{
     try{sessionStorage.setItem(warningKey,warningText.textContent)}catch{}
   }
   saveBatchDraft();
-  const incomplete=parsed.drafts.filter(row=>!row.date||!row.amount).length;
+  const incomplete=parsed.drafts.filter(row=>!row.date||!row.amount||row.bankConflict).length;
   statusBox.textContent='اتضاف '+parsed.drafts.length+' صف للمسودة.'+
-    (incomplete?' '+incomplete+' صف يحتاج تاريخًا أو مبلغًا.':'')+
+    (incomplete?' '+incomplete+' صف يحتاج مراجعة التاريخ أو المبلغ أو الحساب.':'')+
     (parsed.totals.length?' سطور الإجمالي للمراجعة فقط: '+parsed.totals.join('، ')+'.':'');
 };
 document.querySelector('#batch-editor').onsubmit=async event=>{
