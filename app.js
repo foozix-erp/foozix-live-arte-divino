@@ -146,7 +146,12 @@ let api=(action,payload={})=>{
   const send=()=>new Promise((resolve,reject)=>{
     let settled=false;const controller=new AbortController();
     const finish=(fn,value)=>{if(settled)return;settled=true;clearTimeout(timer);fn(value)};
-    const timer=setTimeout(()=>{controller.abort();finish(reject,new Error(state.lang==='ar'?'الاتصال استغرق وقتًا أطول من المتوقع. بياناتك محفوظة؛ أعد المحاولة.':'The connection took too long. Your data is preserved; retry.'))},45000);
+    const postsMovement=action==='transaction.createAndSubmit';
+    const timeoutMs=postsMovement?180000:45000;
+    const timeoutMessage=postsMovement
+      ?(state.lang==='ar'?'الخادم لم يؤكد نتيجة التسجيل بعد. تحقق من سجل الحركات قبل إدخال حركة أخرى.':'Posting has not been confirmed. Check the transaction register before entering another movement.')
+      :(state.lang==='ar'?'الاتصال استغرق وقتًا أطول من المتوقع. أعد المحاولة.':'The connection took too long. Please retry.');
+    const timer=setTimeout(()=>{controller.abort();finish(reject,new Error(timeoutMessage))},timeoutMs);
     if(isAppsScriptHost_()){google.script.run.withSuccessHandler(v=>finish(resolve,v)).withFailureHandler(e=>finish(reject,e)).apiCall(request);return}
     fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=UTF-8'},body:JSON.stringify(request),credentials:'omit',redirect:'follow',cache:'no-store',signal:controller.signal})
       .then(response=>{if(!response.ok)throw new Error('HTTP '+response.status);return response.json()})
