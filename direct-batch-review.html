@@ -16,10 +16,22 @@ textarea{padding:.75rem;resize:vertical}
 thead{background:#edf6f3}
 button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #087e69;outline-offset:2px}
 @media(max-width:40rem){main{margin:.5rem;padding:1rem}button{padding:.6rem .8rem}}
+
+main{width:min(100% - 1.5rem,76rem);box-sizing:border-box}fieldset{min-inline-size:0;margin:0}h1{margin-block:0 1rem}
+#editor-controls .scroll{overflow:visible;border:0;margin-block:1rem}
+#preview table{table-layout:fixed;overflow-wrap:anywhere}#preview td,#preview th{padding:.45rem;font-size:.85rem}#preview:empty{display:none}
+@media(max-width:55rem){#preview table,#preview tbody{display:block}#preview thead{display:none}#preview tr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border-bottom:1px solid #d3e1dc}#preview td{display:block;border:0}#preview td::before{content:attr(data-label);display:block;font-weight:700}}
+#rows,#rows tbody{display:block}#rows thead{display:none}
+#rows tr{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:.55rem .7rem;padding:.8rem;margin-block:.6rem;background:#f5faf8;border:1px solid #d3e1dc;border-radius:.7rem}
+#rows td{display:block;min-width:0;padding:0;border:0}#rows label{display:grid;gap:.2rem;font-size:.86rem}#rows input:not([type=checkbox]),#rows select{width:100%;min-width:0;max-width:100%;padding:.35rem .5rem}
+#rows .wide{grid-column:span 5}#rows .row-details{grid-column:1/-1}#rows .remove-cell{display:flex;justify-content:end;align-items:end}#rows .remove{justify-self:end;align-self:end;padding:.35rem .65rem;background:#fff;color:#8c2533;border:1px solid #e4c5ca}
+.details-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.55rem .7rem;padding-block:.6rem}
+@media(max-width:55rem){#rows tr{grid-template-columns:repeat(3,minmax(0,1fr))}#rows .wide{grid-column:span 2}.details-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:33rem){#rows tr{grid-template-columns:repeat(2,minmax(0,1fr))}#rows .wide{grid-column:1/-1}main{margin-inline:auto;padding:.8rem}}
 </style>
 <main>
 <h1>مراجعة دفعة الحركات</h1>
-<form id="batch-editor"><fieldset id="editor-controls" disabled>
+<form id="batch-editor" novalidate><fieldset id="editor-controls" disabled>
 <label for="source-text">نص الحركات</label>
 <textarea id="source-text" placeholder="الصق رسالة الحركات هنا زي ما هي، بالتواريخ والحسابات."></textarea>
 <button id="split-text" type="button">إضافة النص للمسودة</button>
@@ -57,16 +69,26 @@ function picker(rows,id,label){
 function normalizeBatchSearch(text){
   return String(text||'').normalize('NFKC').toLowerCase()
     .replace(/[\u064b-\u065f\u0670\u0640]/g,'')
-    .replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي')
+    .replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/[٠-٩۰-۹]/g,d=>String('٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹'.indexOf(d)%10))
     .replace(/[^\p{L}\p{N}]+/gu,' ').trim();
+}
+function batchNameVariants(value){
+  const name=normalizeBatchSearch(value);
+  const projectAliases=[
+    [/\bmid\s*town\b/g,'ميد تاون'],[/\bhy(?:de|d)\s*park\b/g,'هايد بارك'],
+    [/\bpalm\s*hills\b/g,'بالم هيلز'],[/\boctober\s*hills\b/g,'اكتوبر هيلز'],
+    [/\bmountain\s*view\b/g,'ماونتن فيو'],[/\bjoulz\b/g,'جولز'],
+    [/\bemerald\b/g,'اميرالد'],[/\bgranda\b/g,'جراندا']
+  ];
+  const localized=projectAliases.reduce((text,[pattern,replacement])=>text.replace(pattern,replacement),name);
+  return [...new Set([name,localized])].filter(x=>x.length>=3);
 }
 function findBatchMatch(text,rows,id,labels){
   const query=' '+normalizeBatchSearch(text)+' ';
   const matches=new Map();
   for(const record of rows||[]){
     for(const label of [id,...labels]){
-      const name=normalizeBatchSearch(record[label]);
-      if(name.length>=3&&query.includes(' '+name+' ')){
+      if(batchNameVariants(record[label]).some(name=>query.includes(' '+name+' '))){
         matches.set(record[id],record);
         break;
       }
@@ -79,9 +101,7 @@ function cleanBatchDescription(text, records, labels){
   const normalized=words.map(word=>normalizeBatchSearch(word[0]));
   const spans=[];
   for(const record of records.filter(Boolean)){
-    for(const label of labels){
-      const name=normalizeBatchSearch(record[label]);
-      if(name.length<3)continue;
+    for(const name of labels.flatMap(label=>batchNameVariants(record[label]))){
       const tokens=name.split(' ');
       for(let i=0;i+tokens.length<=words.length;i++){
         if(!tokens.every((token,j)=>normalized[i+j]===token))continue;
@@ -100,7 +120,15 @@ function addRow(draft={}){
   const body=document.querySelector('#rows tbody');
   if(body.rows.length>=50)throw Error('الحد الأقصى 50 حركة للدفعة.');
   const row=body.insertRow();
-  const put=(name,input)=>{input.name=name;row.insertCell().append(input);return input};
+  const labels={transactionDate:'التاريخ',type:'نوع الحركة',clientId:'العميل',projectId:'المشروع',partyId:'المورد',finishItemId:'البند',agreementId:'الاتفاق',amount:'المبلغ',paymentMethod:'طريقة الدفع',accountId:'الحساب',description:'البيان',notes:'الملاحظات',companyBears:'على حساب الشركة'};
+  const optional=new Map();
+  const put=(name,input)=>{
+    input.name=name;
+    const label=document.createElement('label');label.append(labels[name],input);
+    if(['partyId','finishItemId','agreementId','notes','companyBears'].includes(name))optional.set(name,label);
+    else{const cell=row.insertCell();if(name==='description')cell.className='wide';cell.append(label)}
+    return input;
+  };
   const field=(name,type,value)=>{const input=document.createElement('input');input.type=type;input.value=value||'';return put(name,input)};
   const date=field('transactionDate','date',draft.date);date.required=true;
   const type=put('type',picker(lookups.movementTypes.map(([id,name])=>({id,name})),'id',x=>x.name));type.required=true;
@@ -116,12 +144,14 @@ function addRow(draft={}){
   field('notes','text','');
   put('companyBears',document.createElement('input')).type='checkbox';
   const details=document.createElement('details'),summary=document.createElement('summary');
-  summary.textContent='الكمية والنسبة والضريبة والمرجع';details.append(summary);row.insertCell().append(details);
+  summary.textContent='المورد والبند والاتفاق والتفاصيل الإضافية';
+  const detailFields=document.createElement('div');detailFields.className='details-grid';
+  detailFields.append(...optional.values());details.append(summary,detailFields);
   const extra=(name,label,type,value)=>{
     const wrapper=document.createElement('label'),input=document.createElement('input');
     wrapper.textContent=label;input.name=name;input.type=type;
     if(type==='checkbox')input.checked=Boolean(value);else input.value=value??'';
-    wrapper.append(input);details.append(wrapper,document.createElement('br'));return input;
+    wrapper.append(input);detailFields.append(wrapper);return input;
   };
   const quantity=extra('quantity','الكمية «اختياري»','number','');quantity.min='0';quantity.step='.01';
   extra('unit','الوحدة','text','آخر');
@@ -137,7 +167,7 @@ function addRow(draft={}){
   evidence.onchange=()=>{delete evidence.dataset.documentId};
   function extraPicker(name,label,items,id){
     const wrapper=document.createElement('label'),input=picker(items,id);
-    wrapper.textContent=label;input.name=name;wrapper.append(input);details.append(wrapper,document.createElement('br'));return input;
+    wrapper.textContent=label;input.name=name;wrapper.append(input);detailFields.append(wrapper);return input;
   }
   const employee=extraPicker('employeeId','الموظف / الشريك',lookups.employees,'معرف الموظف');
   const expense=extraPicker('expenseItemId','بند المصروف',lookups.expenseItems,'معرف بند المصروف');
@@ -147,7 +177,7 @@ function addRow(draft={}){
   const assetLocation=extra('assetLocation','موقع الأصل','text','');
   extra('clientAccount','حساب / مرجع العميل','text','آخر');
   const charge=extra('chargeClient','يُحمّل على العميل','checkbox',true);
-  const company=row.querySelector('[name=companyBears]');
+  const company=detailFields.querySelector('[name=companyBears]');
   charge.onchange=()=>{if(charge.checked)company.checked=false};
   company.onchange=()=>{if(company.checked)charge.checked=false};
   type.onchange=async()=>{
@@ -188,7 +218,8 @@ function addRow(draft={}){
       }catch(error){statusBox.textContent=error.message}
     }
   };
-  const remove=document.createElement('button');remove.type='button';remove.textContent='إزالة';row.insertCell().append(remove);
+  const remove=document.createElement('button');remove.type='button';remove.textContent='إزالة';row.insertCell().append(remove);remove.parentElement.className='remove-cell';remove.className='remove';
+  const detailCell=row.insertCell();detailCell.className='row-details';detailCell.append(details);
   remove.onclick=()=>{row.remove();invalidateApproval()};
   function agreements(){
     agreement.replaceChildren(new Option('اختيار…',''));
@@ -210,7 +241,7 @@ function addRow(draft={}){
   };
   if(draft.text){
     const text=normalizeBatchSearch(draft.text);
-    if(/(?:^| )تحصيل(?: |$)/.test(text)){type.value='CUSTOMER_RECEIPT';type.onchange()}
+    if(/(?:^| )(?:تحصيل|استلمنا|استلمت|استلام مبلغ)(?: |$)/.test(text)){type.value='CUSTOMER_RECEIPT';type.onchange()}
     else if(/(?:فاتور[هة]|مشتريات|مون نقاش|نقل مون)/.test(text)){type.value='PROJECT_EXPENSE';type.onchange()}
     const names=['الاسم الإنجليزي','الاسم العربي','الاسم'];
     const matchedClient=findBatchMatch(draft.text,lookups.clients,'معرف العميل',names);
@@ -220,9 +251,9 @@ function addRow(draft={}){
     if(clientId){client.value=clientId;client.onchange()}
     if(matchedProject){project.value=matchedProject['معرف المشروع'];project.onchange()}
     const linkedClient=(lookups.clients||[]).find(record=>record['معرف العميل']===clientId);
-    row.querySelector('[name=description]').value=cleanBatchDescription(draft.text,[linkedClient,matchedProject],names);
+    row.querySelector('[name=description]').value=cleanBatchDescription(draft.description??draft.text,[linkedClient,matchedProject],names);
     const matchedParty=findBatchMatch(draft.text,lookups.parties,'معرف الطرف',names);
-    if(matchedParty){party.value=matchedParty['معرف الطرف'];agreements()}
+    if(matchedParty&&!party.disabled){party.value=matchedParty['معرف الطرف'];agreements()}
     const matchedItem=findBatchMatch(draft.text,lookups.finishItems,'معرف البند',[...names,'الوصف']);
     if(matchedItem)row.querySelector('[name=finishItemId]').value=matchedItem['معرف البند'];
   }
@@ -261,15 +292,24 @@ function parseBatchText(raw){
     }
     const amountFirst=text.match(/^(?:[-•]\s*)?(\d+(?:\.\d{1,2})?)(?=\s|ج|$)/u);
     const invoice=text.match(/فاتور[هة]\s+ب\s?قيم[هة]\s+(\d+(?:\.\d{1,2})?)(?=\s|ج|$)/u);
-    const receipt=text.match(/(?:تحصيل\s+(?:مبلغ\s+)?|تم استلام مبلغ\s+)(\d+(?:\.\d{1,2})?)(?=\s|ج|$)/u);
-    const amount=(amountFirst||invoice||receipt)?.[1];
+    const receipt=text.match(/(?:(?:تحصيل|استلمنا|استلمت|(?:تم\s+)?استلام)\s+(?:مبلغ\s+)?)(\d+(?:\.\d{1,2})?)(?=\s|ج|$)/u);
+    const currencyAmounts=[...text.matchAll(/(?<![\p{L}\p{N}/])(\d+(?:\.\d{1,2})?)(?=\s*(?:جنيه(?:ا)?|ج\.?|EGP)(?:\s|$))/giu)];
+    const amountMatch=amountFirst||invoice||receipt||(currencyAmounts.length===1?currencyAmounts[0]:null);
+    const amount=amountMatch?.[1];
     const isInvoice=/فاتور[هة]/u.test(text);
     if(!amount&&pending){
       pending.text+=' '+line;
+      pending.description+=' '+line.replace(/\b(?:CIB|QNB)\b/gi,' ').trim();
       if(explicitBank)pending.bank=explicitBank;
       pending=null;continue;
     }
-    const draft={date,bank:explicitBank||bank,amount,text:line};
+    let description=text;
+    if(amountMatch){
+      const start=amountMatch.index+amountMatch[0].lastIndexOf(amount);
+      description=text.slice(0,start)+text.slice(start+amount.length).replace(/^\s*(?:جنيه(?:ا)?|ج\.?|EGP)(?=\s|$)/iu,'');
+    }
+    description=description.replace(/\b(?:CIB|QNB)\b/gi,' ').replace(/^[\s•–—-]+/u,'').replace(/\s+/g,' ').trim();
+    const draft={date,bank:explicitBank||bank,amount,text:line,description};
     drafts.push(draft);
     pending=isInvoice&&amount?draft:null;
   }
@@ -289,6 +329,7 @@ document.querySelector('#split-text').onclick=()=>{
 };
 document.querySelector('#batch-editor').onsubmit=async event=>{
   event.preventDefault();
+  for(const field of event.target.querySelectorAll('input,select'))if(field.willValidate&&!field.validity.valid){const panel=field.closest('details');if(panel)panel.open=true}
   if(!event.target.reportValidity())return;
   controls.disabled=true;invalidateApproval();
   try{
@@ -364,7 +405,7 @@ function showRows(rows){
       label('clients','معرف العميل',row.clientId),label('parties','معرف الطرف',row.partyId),
       label('finishItems','معرف البند',row.finishItemId),label('cashAccounts','معرف الحساب النقدي',row.sourceAccountId),
       label('cashAccounts','معرف الحساب النقدي',row.targetAccountId),row.description,row.notes,row.documentId?'مرفق':'—',Number(row.amount).toFixed(2)]){
-      tr.insertCell().textContent=String(value||'');
+      const cell=tr.insertCell();cell.dataset.label=head.cells[cell.cellIndex].textContent;cell.textContent=String(value||'');
     }
   }
   preview.replaceChildren(table);
