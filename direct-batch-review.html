@@ -10,7 +10,14 @@ button,input,select,textarea{font:inherit}button{padding:.8rem 1.3rem;border:0;b
 input,select{min-width:10rem;padding:.5rem;box-sizing:border-box}textarea{width:100%;min-height:8rem;box-sizing:border-box}fieldset{border:0;padding:0}summary{cursor:pointer}
 button:disabled{background:#667972}table{width:100%;border-collapse:collapse}th,td{padding:.7rem;border-bottom:1px solid #d3e1dc;text-align:start}
 .scroll{overflow:auto;border:1px solid #d3e1dc;border-radius:.75rem}
-#actions{display:flex;flex-wrap:wrap;gap:.6rem;margin-top:1rem}
+#actions{display:flex;flex-wrap:wrap;gap:.6rem;margin-top:1rem;align-items:center}
+#batch-progress{position:sticky;bottom:0;z-index:2;background:#f5faf8;border:1px solid #d3e1dc;border-radius:.75rem;padding:.65rem .85rem;margin-top:1rem}
+#batch-progress #status{margin:0}#batch-progress #actions{margin-top:.4rem}
+.learning-controls{display:flex;flex-wrap:wrap;gap:.45rem;align-items:center}
+.learning-controls button{padding:.35rem .6rem}
+.learning-controls span{font-size:.85rem;color:#37564c}
+.learning-controls input{max-width:19rem}
+
 textarea,input,select{border:1px solid #bad6ce;border-radius:.5rem;background:#f9fcfb;color:inherit}
 textarea{padding:.75rem;resize:vertical}
 thead{background:#edf6f3}
@@ -79,21 +86,27 @@ main{width:min(100% - 1.5rem,76rem);box-sizing:border-box}fieldset{min-inline-si
 </div>
 </fieldset></form>
 <details><summary>استيراد ملف مجهّز</summary><label>ملف الحركات <input id="file" type="file" accept=".json,application/json"></label></details>
-<p id="status" role="status">جارٍ تحميل قوائم السيستم…</p>
 <div id="preview" class="scroll"></div>
+<section id="batch-progress" aria-label="حالة الدفعة">
+<p id="status" role="status">جارٍ تحميل قوائم السيستم…</p>
 <div id="actions"><button id="approve" disabled>اعتماد بمفتاح المرور</button><button id="execute" disabled>تسجيل الدفعة المعتمدة</button></div>
+<a id="enroll-key" href="./passkey-registration.html" target="_blank" rel="noopener" hidden>فتح تسجيل مفتاح المرور</a>
+</section>
 </main>
 <script>
 const statusBox=document.querySelector('#status'),preview=document.querySelector('#preview');
 const approve=document.querySelector('#approve'),execute=document.querySelector('#execute'),file=document.querySelector('#file');
 const endpoint='https://script.google.com/macros/s/AKfycbxgMmDd9VtbtSFY8H_Jd-lFtDj8ToRRhpxfBqZAuSCqCEgAS9s4NJJpj_lw3mUPh9URbQ/exec';
 let transactions,grantId;
+const enrollKey=document.querySelector('#enroll-key');
+const executeLabel=execute.textContent;
 const controls=document.querySelector('#editor-controls');
 let lookups;
 let returnSources;
 const linkedReturnTypes=['PURCHASE_RETURN_CASH','PURCHASE_RETURN_CREDIT','LINKED_CUSTOMER_REFUND'];
 function invalidateApproval(){
-  transactions=undefined;grantId=undefined;approve.disabled=true;execute.disabled=true;preview.replaceChildren();
+  if(transactions)statusBox.textContent='المسودة اتعدلت. راجع الدفعة من جديد قبل الاعتماد.';
+  transactions=undefined;grantId=undefined;approve.disabled=true;execute.disabled=true;execute.textContent=executeLabel;preview.replaceChildren();
 }
 function picker(rows,id,label){
   const select=document.createElement('select');
@@ -275,6 +288,18 @@ function summarizeBatchDescription(text){
     .replace(/\s+(?:في|من|لدى|من\s+حساب|على\s+حساب)\s*$/u,'');
   return normalized.replace(/\s+/g,' ').replace(/^[\s،,:؛/—–-]+|[\s،,:؛/—–-]+$/g,'').trim();
 }
+const batchLearningKey='foozix.batch.classification.v1';
+function batchLearning(){
+  try{
+    const rules=JSON.parse(localStorage.getItem(batchLearningKey)||'[]');
+    return Array.isArray(rules)?rules.filter(rule=>rule&&typeof rule.phrase==='string'&&rule.phrase.length>=4):[];
+  }catch{return []}
+}
+function matchBatchLearning(text){
+  const phrase=normalizeBatchSearch(text);
+  const matches=batchLearning().filter(rule=>(' '+phrase+' ').includes(' '+rule.phrase+' '));
+  return matches.length===1?matches[0]:undefined;
+}
 function addRow(draft={}){
   const body=document.querySelector('#rows tbody');
   if(body.rows.length>=50)throw Error('الحد الأقصى 50 حركة للدفعة.');
@@ -430,7 +455,9 @@ function addRow(draft={}){
   };
   type.onchange();
   if(draft.text){
-    const suggestedType=classifyBatchMovement(draft.text,lookups.movementTypes);
+    const baseline=classifyBatchMovement(draft.text,lookups.movementTypes);
+    const learned=matchBatchLearning(draft.description??draft.text);
+    const suggestedType=baseline||learned?.type;
     if([...type.options].some(option=>option.value===suggestedType)){type.value=suggestedType;type.onchange()}
     const names=['الاسم الإنجليزي','الاسم العربي','الاسم'];
     const matchText=draft.description??draft.text;
@@ -454,7 +481,41 @@ function addRow(draft={}){
     const matchedParty=findBatchMatch(draft.text,lookups.parties,'معرف الطرف',names);
     if(matchedParty&&!party.disabled){party.value=matchedParty['معرف الطرف'];party.onchange()}
     const matchedItem=batchFinishItem(matchText,lookups.finishItems);
-    if(matchedItem&&!finish.disabled)finish.value=matchedItem['معرف البند'];
+    const learnedItem=learned?.type===type.value?learned.item:'';
+    if(!finish.disabled){
+      const suggestedItem=learnedItem||matchedItem?.['معرف البند'];
+      if([...finish.options].some(option=>option.value===suggestedItem))finish.value=suggestedItem;
+    }
+    const learning=document.createElement('div');
+    learning.className='learning-controls';
+    const phrase=document.createElement('input');
+    phrase.type='text';phrase.maxLength=100;phrase.placeholder='عبارة متكررة من النص';
+    phrase.setAttribute('aria-label','العبارة اللي الصفحة تتعلم منها');
+    const saveRule=document.createElement('button');saveRule.type='button';saveRule.textContent='احفظ التصنيف للعبارة';
+    const forget=document.createElement('button');forget.type='button';forget.textContent='احذف الاقتراح';
+    const feedback=document.createElement('span');feedback.setAttribute('role','status');
+    if(learned){phrase.value=learned.phrase;feedback.textContent='فيه اقتراح محفوظ للعبارة دي.'}
+    for(const event of ['input','change'])phrase.addEventListener(event,e=>e.stopPropagation());
+    saveRule.onclick=()=>{
+      const key=normalizeBatchSearch(phrase.value);
+      if(key.length<4||!(' '+normalizeBatchSearch(matchText)+' ').includes(' '+key+' ')){
+        feedback.textContent='اكتب عبارة متكررة من نص الحركة الحالي.';return;
+      }
+      if(!type.value){feedback.textContent='اختار نوع الحركة الأول.';return}
+      try{
+        const rules=batchLearning().filter(rule=>rule.phrase!==key);
+        localStorage.setItem(batchLearningKey,JSON.stringify([{phrase:key,type:type.value,item:finish.disabled?'':finish.value},...rules].slice(0,100)));
+        feedback.textContent='اتحفظ اقتراح العبارة على المتصفح ده.';
+      }catch{feedback.textContent='المتصفح لم يسمح بحفظ الاقتراح.'}
+    };
+    forget.onclick=()=>{
+      try{
+        const key=normalizeBatchSearch(phrase.value);
+        localStorage.setItem(batchLearningKey,JSON.stringify(batchLearning().filter(rule=>rule.phrase!==key)));
+        feedback.textContent='اتمسح اقتراح العبارة من المتصفح.';
+      }catch{feedback.textContent='المتصفح لم يسمح بحذف الاقتراح.'}
+    };
+    learning.append(phrase,saveRule,forget,feedback);details.append(learning);
   }
   if(draft.bank){
     const matching=lookups.cashAccounts.filter(x=>x['النوع']==='BANK'&&
@@ -592,7 +653,10 @@ async function call(action,payload){
   if(!sessionToken)throw Error('سجّل الدخول إلى FOOZIX من نفس المتصفح أولًا.');
   const response=await fetch(endpoint,{method:'POST',credentials:'omit',cache:'no-store',headers:{'Content-Type':'text/plain;charset=UTF-8'},body:JSON.stringify({action,payload,sessionToken})});
   const result=await response.json();
-  if(!response.ok||!result.ok)throw Error(result.messageAr||'تعذر تنفيذ الطلب.');
+  if(!response.ok||!result.ok){
+    const error=new Error(result.messageAr||'تعذر تنفيذ الطلب.');
+    error.code=result.code;error.requestId=result.requestId;throw error;
+  }
   return result.data;
 }
 function showRows(rows){
@@ -632,26 +696,41 @@ file.onchange=async()=>{
   }catch(error){statusBox.textContent=error.message}
   finally{file.disabled=false}
 };
+function batchFailure(error){
+  const messages={
+    PASSKEY_ENROLLMENT_UNAVAILABLE:'مفتاح المرور مش مفعّل لحسابك. سجّل المفتاح الأول علشان تعتمد الدفعة.',
+    PASSKEY_APPROVAL_FAILED:'التحقق من مفتاح المرور لم يكتمل. جرّب الاعتماد مرة تانية.',
+    DIRECT_BATCH_IN_PROGRESS:'نفس الدفعة لسه بتتسجل. استنى قبل إعادة المحاولة.',
+    DIRECT_APPROVAL_EXPIRED:'مدة اعتماد الدفعة انتهت. راجع سجل الحركات الأول للتأكد من اللي اتسجل قبل اعتماد دفعة جديدة.',
+    DIRECT_BATCH_SAVE_UNCONFIRMED:'الخادم ما أكدش تسجيل كل الحركات. راجع سجل الحركات قبل إعادة الإرسال.'
+  };
+  const message=messages[error.code]||(error.name==='NotAllowedError'?'تم إلغاء اعتماد مفتاح المرور أو انتهت مهلته.':error.message);
+  return message+(error.requestId?' رقم الطلب '+error.requestId+'.':'');
+}
 approve.onclick=async()=>{
-  approve.disabled=true;file.disabled=true;controls.disabled=true;
+  approve.disabled=true;file.disabled=true;controls.disabled=true;enrollKey.hidden=true;
+  statusBox.textContent='جارٍ طلب اعتماد الدفعة بمفتاح المرور…';
   try{
     const request=await call('directConnection.approval.begin',{transactions});
     const proof=await navigator.credentials.get({publicKey:PublicKeyCredential.parseRequestOptionsFromJSON(request.options)});
     const result=await call('directConnection.approval.finish',{transactions,id:request.id,proof:proof.toJSON()});
     if(!result.verified)throw Error('تعذر تأكيد الاعتماد.');
     grantId=result.id;execute.disabled=false;statusBox.textContent='تم اعتماد الدفعة. راجعها ثم اضغط تسجيل.';
-  }catch(error){statusBox.textContent=error.name==='NotAllowedError'?'تم إلغاء الاعتماد أو انتهت مهلته.':error.message;approve.disabled=false;file.disabled=false;controls.disabled=false}
+  }catch(error){enrollKey.hidden=error.code!=='PASSKEY_ENROLLMENT_UNAVAILABLE';statusBox.textContent=batchFailure(error);approve.disabled=false;file.disabled=false;controls.disabled=false}
 };
 execute.onclick=async()=>{
+  if(!grantId)return;
   execute.disabled=true;
+  statusBox.textContent='جارٍ تسجيل الدفعة. استنى تأكيد الخادم قبل إعادة الإرسال.';
   try{
     const result=await call('directConnection.execute',{id:grantId});
-    if(!result.complete)throw Error('التسجيل لم يكتمل.');
-    statusBox.textContent='تم تسجيل '+result.results.length+' حركة.';
+    if(!result.complete||!Array.isArray(result.results)||!result.results.length||result.results.some(row=>!row.transactionId||!row.journalId))throw Error('الخادم لم يرجع أرقام الحركات والقيود لتأكيد التسجيل.');
+    grantId=undefined;
+    statusBox.textContent='تم تسجيل '+result.results.length+' حركة. أرقام الحركات والقيود ظاهرة في النتيجة.';
     const list=document.createElement('ul');
     for(const row of result.results){const item=document.createElement('li');item.textContent='الحركة '+row.transactionId+'، القيد '+row.journalId;list.append(item)}
     preview.replaceChildren(list);
-  }catch(error){statusBox.textContent=error.message+' استخدم إعادة المحاولة لنفس الدفعة.';execute.textContent='إعادة محاولة نفس الدفعة';execute.disabled=false}
+  }catch(error){statusBox.textContent=batchFailure(error)+' لو هتعيد المحاولة استخدم نفس الدفعة من الزر هنا.';execute.textContent='إعادة محاولة نفس الدفعة';execute.disabled=error.code==='DIRECT_APPROVAL_EXPIRED'}
 };
 call('directConnection.lookups',{}).then(data=>{
   lookups=data;controls.disabled=false;statusBox.textContent='أضف حركة أو الصق النص لتجهيز المسودة.';
