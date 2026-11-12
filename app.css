@@ -1010,5 +1010,41 @@ html[dir] body.v5-shell:has(.sidebar.open) .drawer-edge-toggle {
   .v5-splash::after { animation: none; }
 }
 
+/* Keep the drawer controls immediately below the navigation and give the
+   approved character a larger, independent area. */
+body.v5-shell .sidebar > .nav {
+  flex: 0 1 auto!important;
+  padding-bottom: 4px!important;
+}
+body.v5-shell .sidebar > .nav > button[data-view] {
+  min-height: 28px!important;
+  padding-block: 4px!important;
+}
+body.v5-shell .sidebar > .v5-drawer-actions {
+  margin-block-start: 7px!important;
+}
+body.v5-shell .sidebar > .super-foozi-launcher:not(.active) {
+  height: clamp(112px, 27dvh, 222px)!important;
+  margin-block-start: 6px!important;
+}
+body.v5-shell .workspace-tab .workspace-tab-select {
+  justify-content: flex-start!important;
+  padding-inline-start: 2px!important;
+}
+body.v5-shell .workspace-tab [data-workspace-save] {
+  flex: 0 0 26px!important;
+}
+body.v5-shell .workspace-tab .workspace-tab-close {
+  margin-inline-start: auto!important;
+}
+@media(max-width: 760px) {
+  body.v5-shell .sidebar > .nav > button[data-view] {
+    min-height: 38px!important;
+  }
+  body.v5-shell .sidebar > .super-foozi-launcher:not(.active) {
+    height: clamp(104px, 24dvh, 182px)!important;
+  }
+}
+
 /* Refresh only the arrow; the button and its hit target remain still. */
 .workspace-refresh,.page-refresh-button{font-size:0!important}.workspace-refresh::before,.page-refresh-button::before{content:"↻";display:inline-block;font-size:1.25rem}.workspace-refresh.is-refreshing,.page-refresh-button.is-refreshing{animation:none!important}.workspace-refresh.is-refreshing::before,.page-refresh-button.is-refreshing::before{animation:workspaceRefreshSpin .8s linear infinite}
