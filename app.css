@@ -1032,6 +1032,8 @@ body.v5-shell .sidebar > .v5-drawer-actions > .v5-drawer-action {
   gap: 6px!important;
   width: 100%!important;
   min-height: 36px!important;
+  font-size: .86rem!important;
+  line-height: 1.25!important;
   margin: 0!important;
 }
 body.v5-shell .v5-drawer-actions .v5-drawer-action svg {
@@ -1044,12 +1046,14 @@ body.v5-shell .v5-drawer-actions .v5-drawer-action svg {
 }
 body.v5-shell .sidebar > .v5-drawer-actions > #logout {
   grid-column: 1 / -1;
-  color: #ffb5b5!important;
-  border-color: rgba(255, 181, 181, .55)!important;
+  color: #b91c1c!important;
+  background: #fff1f1!important;
+  border-color: #fca5a5!important;
+  font-weight: 700!important;
 }
 body.v5-shell .sidebar > .super-foozi-launcher:not(.active) {
-  height: clamp(145px, 34dvh, 274px)!important;
-  margin-block-start: 6px!important;
+  height: clamp(150px, 37dvh, 300px)!important;
+  margin-block-start: auto!important;
 }
 body.v5-shell .workspace-tab .workspace-tab-select {
   justify-content: flex-start!important;
@@ -1066,7 +1070,7 @@ body.v5-shell .workspace-tab .workspace-tab-close {
     min-height: 38px!important;
   }
   body.v5-shell .sidebar > .super-foozi-launcher:not(.active) {
-    height: clamp(125px, 30dvh, 236px)!important;
+    height: clamp(125px, 33dvh, 258px)!important;
   }
 }
 
