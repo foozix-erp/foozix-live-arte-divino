@@ -1076,3 +1076,24 @@ body.v5-shell .workspace-tab .workspace-tab-close {
 
 /* Refresh only the arrow; the button and its hit target remain still. */
 .workspace-refresh,.page-refresh-button{font-size:0!important}.workspace-refresh::before,.page-refresh-button::before{content:"↻";display:inline-block;font-size:1.25rem}.workspace-refresh.is-refreshing,.page-refresh-button.is-refreshing{animation:none!important}.workspace-refresh.is-refreshing::before,.page-refresh-button.is-refreshing::before{animation:workspaceRefreshSpin .8s linear infinite}
+
+/* Match the drawer to the usable viewport in browser and installed windows. */
+body.v5-shell .sidebar {
+  box-sizing: border-box;
+  height: auto!important;
+  inset-block: 0!important;
+  padding-block-end: max(12px, env(safe-area-inset-bottom, 0px))!important;
+}
+body.v5-shell .sidebar:not(:has(> .super-foozi-launcher:not(.active))) > .v5-drawer-actions {
+  margin-block-start: auto!important;
+}
+@media (display-mode: standalone), (display-mode: window-controls-overlay) {
+  body.v5-shell .sidebar {
+    padding-block-start: max(16px, env(safe-area-inset-top, 0px))!important;
+  }
+}
+@media (max-width: 760px) {
+  body.v5-shell .sidebar > .v5-drawer-actions > .v5-drawer-action {
+    min-height: 42px!important;
+  }
+}
