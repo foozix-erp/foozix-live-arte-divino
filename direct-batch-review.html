@@ -199,7 +199,11 @@ const projectAliases=[
 ].map(group=>group.split('|').map(normalizeBatchSearch));
 const batchClientAliases = {
   'mostafa mohamed':['مصطفى محمد'],
-  'ehab atris':['إيهاب عتريس']
+  'ehab atris':['إيهاب عتريس'],
+  'saad mohamed':['سعد محمد'],
+  'hisham elemam':['هشام الإمام'],
+  'mohamed alagaty':['محمد العجاتي'],
+  'majd elsaeedy':['مجد الصعيدي','مجد السعيدي']
 };
 function batchNameVariants(value,isProject=false,isClient=false){
   const name=normalizeBatchSearch(value);
@@ -215,6 +219,8 @@ function batchNameVariants(value,isProject=false,isClient=false){
   }
   const names=new Set([name,...variants]);
   for(const variant of variants){
+    const family=variant.match(/^(بالم هيلز|الاندلس|اندلس)(?: |$)/u);
+    if(family)names.add(family[1]==='بالم هيلز'?family[1]:'الاندلس');
     if(/^(?:palm hills|بالم هيلز) 5 107$/u.test(variant))names.add('بالم هيلز التجمع');
     const sarai=variant.match(/^(?:sarai|سراي) s(92|93)a (?:tamer|khaled)$/u);
     if(sarai)names.add('سراي '+sarai[1]);
@@ -269,7 +275,7 @@ function classifyBatchMovement(text, movementTypes){
   const has=pattern=>pattern.test(normalized);
   const design=has(/(?:^| )(?:التصميم|تصميم|تصميمات|التصميمات|ديزاين|ديزين|design)(?: |$)/u);
   const incoming=has(/(?:^| )(?:استلمنا|استلمت|استلام مبلغ|تحصيل|تم التحصيل|وصلنا|قبضنا)(?: |$)/u);
-  const outgoing=has(/(?:^| )(?:مصروف مشروع|دفع مورد|دفع مقاول|دفعنا|دفعنا للمصمم|اتدفع للمصمم|مشتريات|مون نقاشه|نقل مون|دف(?:عه|عات) زجاج|محابس دفن|ايجار شقه|اجور عمال|مصنعي(?:ه|ات) (?:سباك|كهربائي))(?: |$)/u);
+  const outgoing=has(/(?:^| )(?:مصروف مشروع|دفع مورد|دفع مقاول|و?دفعنا|دفعنا للمصمم|اتدفع للمصمم|مشتريات|مون نقاشه|نقل مون|دف(?:عه|عات) زجاج|محابس دفن|ايجار شقه|اجور عمال|مصنعي(?:ه|ات) (?:سباك|كهربائي))(?: |$)/u);
   if(incoming&&outgoing)return '';
   if(incoming)return 'CUSTOMER_RECEIPT';
   if(outgoing)return 'PROJECT_EXPENSE';
@@ -286,6 +292,7 @@ function batchFinishItem(text, items){
     [/مصنعي(?:ه|ات) (?:كهربائي|الكهرباء|كهرباء)/u,/^اعمال الكهرباء مصنعيات$/u],
     [/مشتريات (?:سيراميك|السيراميك)/u,/^اعمال السيراميك مشتريات$/u],
     [/مشتريات (?:مون|خامات)/u,/^اعمال البناء مشتريات المون والخامات$/u],
+    [/(?:^| )مون(?: |$).*(?:اسمنت|رمل)(?: |$)/u,/^اعمال البناء مشتريات المون والخامات$/u],
     [/مون نقاشه|جوتن|مشتريات دهانات/u,/^اعمال الدهانات مشتريات$/u],
     [/مشتريات كهرباء|مون كهرباء|خامات كهرباء/u,/^اعمال الكهرباء مشتريات$/u],
     [/محابس دفن|مشتريات سباكه/u,/^اعمال السباكه مشتريات$/u],
@@ -583,7 +590,19 @@ async function addRow(draft={}){
     };
     learning.append(phrase,saveRule,forget,feedback);details.append(learning);
   }
-  if(draft.bank){
+  if(type.value==='INTERNAL_TRANSFER'&&draft.text){
+    const direction=draft.text.match(/(?:^|\s)من\s+(?:حساب\s+)?(CIB|QNB)\s+(?:إلى|الى|إلي|الي|ل)\s*(?:حساب\s+)?(CIB|QNB)\b/iu);
+    const resolveBank=bank=>(lookups.cashAccounts||[]).filter(item=>
+      item['النوع']==='BANK'&&String(item['الاسم']).toUpperCase().split(/[^A-Z]+/).includes(bank.toUpperCase()));
+    if(direction&&direction[1].toUpperCase()!==direction[2].toUpperCase()){
+      const source=resolveBank(direction[1]),destination=resolveBank(direction[2]);
+      if(source.length===1&&destination.length===1){
+        payment.value='BANK_TRANSFER';payment.onchange();
+        account.value=source[0]['معرف الحساب النقدي'];
+        target.value=destination[0]['معرف الحساب النقدي'];
+      }
+    }
+  }else if(draft.bank){
     const matching=lookups.cashAccounts.filter(x=>x['النوع']==='BANK'&&
       String(x['الاسم']).toUpperCase().split(/[^A-Z]+/).includes(draft.bank));
     if(matching.length===1){payment.value='BANK_TRANSFER';payment.onchange();account.value=matching[0]['معرف الحساب النقدي']}
