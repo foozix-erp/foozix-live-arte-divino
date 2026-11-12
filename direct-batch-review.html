@@ -28,20 +28,55 @@ main{width:min(100% - 1.5rem,76rem);box-sizing:border-box}fieldset{min-inline-si
 .details-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.55rem .7rem;padding-block:.6rem}
 @media(max-width:55rem){#rows tr{grid-template-columns:repeat(3,minmax(0,1fr))}#rows .wide{grid-column:span 2}.details-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:33rem){#rows tr{grid-template-columns:repeat(2,minmax(0,1fr))}#rows .wide{grid-column:1/-1}main{margin-inline:auto;padding:.8rem}}
+.batch-layout{display:grid;gap:1.25rem;align-items:start}
+.source-panel,.draft-panel{min-inline-size:0}
+.source-panel{padding:1rem;border:1px solid #d3e1dc;border-radius:.75rem;background:#f5faf8}
+.source-panel label{display:block;margin-block-end:.35rem;font-weight:700}
+#source-text{display:block;margin-block-end:.65rem}
+.draft-panel{container-type:inline-size}
+.draft-toolbar{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center}
+.source-jump{color:#08634e;font-weight:600;padding:.35rem .5rem}
+@media(min-width:64rem) and (min-height:28rem){
+  main{width:min(100% - 2rem,94rem);max-width:none}
+  .batch-layout{grid-template-columns:minmax(16rem,1fr) minmax(0,2.5fr)}
+  .source-panel{position:sticky;top:1rem}
+  #source-text{height:min(52vh,32rem);max-height:calc(100vh - 10rem);resize:none}
+  .source-jump{display:none}
+}
+@media(max-width:63.999rem), (max-height:27.999rem){
+  .draft-toolbar{position:sticky;top:0;z-index:1;background:white;padding-block:.35rem}
+}
+@container (max-width:48rem){
+  #rows tr{grid-template-columns:repeat(3,minmax(0,1fr))}
+  #rows .wide{grid-column:span 2}
+}
+@container (max-width:30rem){
+  #rows tr{grid-template-columns:repeat(2,minmax(0,1fr))}
+  #rows .wide{grid-column:1/-1}
+}
 </style>
 <main>
 <h1>مراجعة دفعة الحركات</h1>
 <form id="batch-editor" novalidate><fieldset id="editor-controls" disabled>
-<label for="source-text">نص الحركات</label>
+<div class="batch-layout">
+<section class="source-panel" aria-labelledby="source-label">
+<label id="source-label" for="source-text">نص الحركات</label>
 <textarea id="source-text" placeholder="الصق رسالة الحركات هنا زي ما هي، بالتواريخ والحسابات."></textarea>
 <button id="split-text" type="button">إضافة النص للمسودة</button>
+</section>
+<section class="draft-panel" aria-label="مسودة الحركات">
+<div class="draft-toolbar">
 <button id="add-row" type="button">إضافة حركة</button>
+<a class="source-jump" href="#source-text">عرض النص الأصلي</a>
+</div>
 <p>راجع المبلغ والتاريخ والتصنيف لكل صف قبل المعاينة.</p>
 <div class="scroll"><table id="rows"><thead><tr>
 <th>التاريخ</th><th>نوع الحركة</th><th>العميل</th><th>المشروع</th><th>المورد</th><th>البند</th><th>الاتفاق</th>
 <th>المبلغ</th><th>طريقة الدفع</th><th>الحساب</th><th>البيان</th><th>الملاحظات</th><th>على حساب الشركة</th><th>تفاصيل إضافية</th><th>إزالة</th>
 </tr></thead><tbody></tbody></table></div>
 <button type="submit">مراجعة الدفعة</button>
+</section>
+</div>
 </fieldset></form>
 <details><summary>استيراد ملف مجهّز</summary><label>ملف الحركات <input id="file" type="file" accept=".json,application/json"></label></details>
 <p id="status" role="status">جارٍ تحميل قوائم السيستم…</p>
