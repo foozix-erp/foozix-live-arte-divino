@@ -879,8 +879,8 @@ body.v5-shell .sidebar > .super-foozi-launcher:not(.active) {
   opacity: 1!important;
 }
 body.v5-shell .sidebar > .super-foozi-launcher:not(.active) span {
-  background-size: contain!important;
-  background-position: center!important;
+  background-size: 200% 100%!important;
+  background-position: left center!important;
 }
 html[dir] body.v5-shell .drawer-edge-toggle {
   position: fixed!important;
@@ -931,6 +931,83 @@ body.v5-shell .drawer-edge-toggle::after {
   body.v5-shell .workspace-tabs-actions { gap: 4px!important; }
   body.v5-shell .workspace-tabs-actions button { min-height: 40px!important; }
   body.v5-shell .content > h1 { font-size: clamp(1.2rem, 5vw, 1.55rem)!important; }
+}
+
+/* A continuous workspace header with room for wider tabs on quiet desktops. */
+body.v5-shell .topbar {
+  background: rgba(248, 253, 252, .78)!important;
+  backdrop-filter: blur(14px) saturate(1.15);
+  border-bottom: 1px solid rgba(170, 207, 198, .55)!important;
+}
+body.v5-shell .workspace-tabs-list { gap: 5px!important; }
+body.v5-shell .workspace-tab[data-workspace-drag] {
+  position: relative;
+  flex: 1 1 216px!important;
+  min-width: 102px!important;
+  max-width: 244px!important;
+  border-radius: 12px 12px 5px 5px!important;
+  align-items: center!important;
+  padding-inline-end: 5px;
+}
+body.v5-shell .workspace-tab .workspace-tab-close {
+  display: grid!important;
+  place-items: center;
+  flex: 0 0 22px!important;
+  width: 22px!important;
+  height: 22px!important;
+  min-height: 0!important;
+  padding: 0!important;
+  border-radius: 50%!important;
+  background: rgba(7, 91, 76, .12)!important;
+  line-height: 1;
+}
+body.v5-shell .workspace-tab.active .workspace-tab-close {
+  background: rgba(255, 255, 255, .22)!important;
+}
+body.v5-shell .workspace-tab .workspace-tab-close:hover:not(:disabled) {
+  background: #fee4e2!important;
+  color: #8e2119!important;
+}
+body.v5-shell .workspace-tab[data-drop-side]::after {
+  content: '';
+  position: absolute;
+  inset-block: 2px;
+  width: 3px;
+  border-radius: 2px;
+  background: #d89914;
+  pointer-events: none;
+}
+body.v5-shell .workspace-tab[data-drop-side="before"]::after { inset-inline-start: 0; }
+body.v5-shell .workspace-tab[data-drop-side="after"]::after { inset-inline-end: 0; }
+body.v5-shell:has(.sidebar.open) .drawer-edge-toggle::before { content: none!important; }
+html[dir] body.v5-shell:has(.sidebar.open) .drawer-edge-toggle {
+  background: #075b4c!important;
+  border-radius: 0 0 10px 10px!important;
+}
+
+/* Pulse the lighting around the artwork's center without moving the artwork. */
+.v5-splash {
+  background-size: cover!important;
+  background-position: 48.4% 49%!important;
+}
+.v5-splash::after {
+  content: ''!important;
+  display: block!important;
+  position: absolute;
+  inset: auto;
+  top: 49%;
+  left: 48.4%;
+  width: max(14vw, 24.9vh);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, transparent 45%, rgba(164, 255, 219, .42) 57%, transparent 73%);
+  opacity: .22;
+  animation: splashLightPulse 1.8s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+@keyframes splashLightPulse { to { opacity: .85; } }
+@media (prefers-reduced-motion: reduce) {
+  .v5-splash::after { animation: none; }
 }
 
 /* Refresh only the arrow; the button and its hit target remain still. */
