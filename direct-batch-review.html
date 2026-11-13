@@ -876,7 +876,17 @@ execute.onclick=async()=>{
   try{sessionStorage.setItem(batchAttemptKey,grantId)}catch{}
   statusBox.textContent='جارٍ تسجيل الدفعة. استنى تأكيد الخادم قبل إعادة الإرسال.';
   try{
-    const result=await call('directConnection.execute',{id:grantId});
+    let result;
+    let previous=0;
+    for(let step=0;step<50;step++){
+      result=await call('directConnection.execute',{id:grantId,chunked:true});
+      if(result?.complete)break;
+      const {processedRows,totalRows}=result||{};
+      if(!Number.isInteger(processedRows)||!Number.isInteger(totalRows)||
+        processedRows<=previous||processedRows>=totalRows||totalRows>50)break;
+      previous=processedRows;
+      statusBox.textContent='اتأكد تسجيل '+processedRows+' من '+totalRows+' صف. جارٍ استكمال نفس الدفعة…';
+    }
     if(!result.complete||!Array.isArray(result.results)||!result.results.length||result.results.some(row=>!row.transactionId||!row.journalId))throw Error('الخادم لم يرجع أرقام الحركات والقيود لتأكيد التسجيل.');
     grantId=undefined;
     try{sessionStorage.removeItem(batchDraftKey);sessionStorage.removeItem(batchAttemptKey);sessionStorage.removeItem(warningKey)}catch{}
