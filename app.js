@@ -1034,10 +1034,13 @@ projectSummaryTable_=function(projects){
   const headers=`<th>${ar?'النسبة المحصلة':'Markup collected'}</th><th>${ar?'المسحوب من النسبة':'Markup used'}</th><th>${ar?'المتبقي من النسبة':'Markup remaining'}</th>`;
   const rows=(projects||[]).map(p=>{
     const code=String(p['كود المشروع']||''),match=groupByCode.get(code),g=match?.group;
-    const pending=ar?'بيان المسحوبات التاريخية غير معتمد':'Historical withdrawals unverified';
+    const unavailable=state.view==='dashboard'&&(!state.data.dashboardMarkupUsage||state.data.dashboardMarkupUsage.unavailable);
+    const pending=unavailable?(ar?'بيانات المسحوبات غير متاحة':'Withdrawal data unavailable'):
+      g?.pendingReview?(ar?'البيان مسجل وقيد المراجعة':'Declaration recorded and pending review'):
+      (ar?'لا يوجد بيان معتمد':'No approved declaration');
     let collected=money(p.markupCollected??p['النسبة المحصلة']??0),used=pending,remaining=pending;
     if(g&&match.shared){collected=used=remaining=ar?`ضمن المجموعة المشتركة ${match.lead}`:`Included in shared group ${match.lead}`;}
-    else if(g){collected=money(g.collected);if(g.baselineId||Number(g.linkedAfter||0)>0){used=money(g.used);remaining=money(g.remaining);}}
+    else if(g){collected=money(g.collected);if(g.baselineId||(state.view!=='dashboard'&&Number(g.linkedAfter||0)>0)){used=money(g.used);remaining=money(g.remaining);}}
     return `<td class="markup-collected">${esc(collected)}</td><td class="markup-used">${esc(used)}</td><td class="markup-remaining">${esc(remaining)}</td>`;
   });
   let index=0;
