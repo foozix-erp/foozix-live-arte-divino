@@ -4,7 +4,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>مراجعة دفعة الحركات | FOOZIX</title>
 <style>
-body{margin:0;background:#edf6f3;color:#142d26;font:1rem/1.6 system-ui,sans-serif}
+html,body{max-width:100%;overflow-x:hidden}body{margin:0;background:#edf6f3;color:#142d26;font:1rem/1.6 system-ui,sans-serif}
 main{max-width:70rem;margin:2rem auto;padding:1.5rem;background:white;border-radius:1rem}
 button,input,select,textarea{font:inherit}button{padding:.8rem 1.3rem;border:0;border-radius:.5rem;background:#08634e;color:white}
 input,select{min-width:10rem;padding:.5rem;box-sizing:border-box}textarea{width:100%;min-height:8rem;box-sizing:border-box}fieldset{border:0;padding:0}summary{cursor:pointer}
@@ -24,7 +24,7 @@ thead{background:#edf6f3}
 button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #087e69;outline-offset:2px}
 @media(max-width:40rem){main{margin:.5rem;padding:1rem}button{padding:.6rem .8rem}}
 
-main{width:min(100% - 1.5rem,76rem);box-sizing:border-box}fieldset{min-inline-size:0;margin:0}h1{margin-block:0 1rem}
+main{width:calc(100% - 1.5rem);max-width:76rem;box-sizing:border-box;overflow:hidden}fieldset{min-inline-size:0;margin:0}h1{margin-block:0 1rem}
 #editor-controls .scroll{overflow:visible;border:0;margin-block:1rem}
 #preview table{table-layout:fixed;overflow-wrap:anywhere}#preview td,#preview th{padding:.45rem;font-size:.85rem}#preview:empty{display:none}
 @media(max-width:55rem){#preview table,#preview tbody{display:block}#preview thead{display:none}#preview tr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border-bottom:1px solid #d3e1dc}#preview td{display:block;border:0}#preview td::before{content:attr(data-label);display:block;font-weight:700}}
@@ -35,7 +35,7 @@ main{width:min(100% - 1.5rem,76rem);box-sizing:border-box}fieldset{min-inline-si
 .details-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.55rem .7rem;padding-block:.6rem}
 @media(max-width:55rem){#rows tr{grid-template-columns:repeat(3,minmax(0,1fr))}#rows .wide{grid-column:span 2}.details-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:33rem){#rows tr{grid-template-columns:repeat(2,minmax(0,1fr))}#rows .wide{grid-column:1/-1}main{margin-inline:auto;padding:.8rem}}
-.batch-layout{display:grid;gap:1.25rem;align-items:start}
+.batch-layout{display:grid;gap:1.25rem;align-items:start;width:100%;min-width:0}
 .source-panel,.draft-panel{min-inline-size:0}
 .source-panel{padding:1rem;border:1px solid #d3e1dc;border-radius:.75rem;background:#f5faf8}
 .source-panel label{display:block;margin-block-end:.35rem;font-weight:700}
@@ -44,7 +44,7 @@ main{width:min(100% - 1.5rem,76rem);box-sizing:border-box}fieldset{min-inline-si
 .draft-toolbar{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center}
 .source-jump{color:#08634e;font-weight:600;padding:.35rem .5rem}
 @media(min-width:64rem) and (min-height:28rem){
-  main{width:min(100% - 2rem,94rem);max-width:none}
+  main{width:calc(100% - 2rem);max-width:94rem}
   .batch-layout{grid-template-columns:minmax(16rem,1fr) minmax(0,2.5fr)}
   .source-panel{position:sticky;top:1rem}
   #source-text{height:min(52vh,32rem);max-height:calc(100vh - 10rem);resize:none}
@@ -61,6 +61,7 @@ main{width:min(100% - 1.5rem,76rem);box-sizing:border-box}fieldset{min-inline-si
   #rows tr{grid-template-columns:repeat(2,minmax(0,1fr))}
   #rows .wide{grid-column:1/-1}
 }
+@media(max-width:33rem){h1{font-size:1.55rem;line-height:1.3}.source-panel{padding:.75rem}#batch-progress #actions{display:grid;grid-template-columns:1fr}#batch-progress button{width:100%}}
 </style>
 <main>
 <h1>مراجعة دفعة الحركات</h1>
@@ -93,16 +94,14 @@ main{width:min(100% - 1.5rem,76rem);box-sizing:border-box}fieldset{min-inline-si
 <div id="preview" class="scroll"></div>
 <section id="batch-progress" aria-label="حالة الدفعة">
 <p id="status" role="status">جارٍ تحميل قوائم السيستم…</p>
-<div id="actions"><button id="approve" disabled>اعتماد بمفتاح المرور</button><button id="execute" disabled>تسجيل الدفعة المعتمدة</button></div>
-<a id="enroll-key" href="./passkey-registration.html" target="_blank" rel="noopener" hidden>فتح تسجيل مفتاح المرور</a>
+<div id="actions"><button id="approve" disabled>اعتماد الدفعة بعد المراجعة</button><button id="execute" disabled>تسجيل الدفعة المعتمدة</button></div>
 </section>
 </main>
 <script>
 const statusBox=document.querySelector('#status'),preview=document.querySelector('#preview');
 const approve=document.querySelector('#approve'),execute=document.querySelector('#execute'),file=document.querySelector('#file');
 const endpoint='https://script.google.com/macros/s/AKfycbxgMmDd9VtbtSFY8H_Jd-lFtDj8ToRRhpxfBqZAuSCqCEgAS9s4NJJpj_lw3mUPh9URbQ/exec';
-let transactions,grantId;
-const enrollKey=document.querySelector('#enroll-key');
+let transactions,grantId,previewFingerprint;
 const executeLabel=execute.textContent;
 const controls=document.querySelector('#editor-controls');
 let lookups;
@@ -110,7 +109,7 @@ let returnSources;
 const linkedReturnTypes=['PURCHASE_RETURN_CASH','PURCHASE_RETURN_CREDIT','LINKED_CUSTOMER_REFUND'];
 function invalidateApproval(){
   if(transactions)statusBox.textContent='المسودة اتعدلت. راجع الدفعة من جديد قبل الاعتماد.';
-  transactions=undefined;grantId=undefined;approve.disabled=true;execute.disabled=true;execute.textContent=executeLabel;preview.replaceChildren();
+  transactions=undefined;grantId=undefined;previewFingerprint=undefined;approve.disabled=true;execute.disabled=true;execute.textContent=executeLabel;preview.replaceChildren();
 }
 function picker(rows,id,label){
   const select=document.createElement('select');
@@ -795,7 +794,7 @@ document.querySelector('#batch-editor').onsubmit=async event=>{
       rows.push(item);
     }
     const result=await call('directConnection.preview',{transactions:rows});
-    transactions=result.transactions;showRows(transactions);approve.disabled=false;
+    transactions=result.transactions;previewFingerprint=result.fingerprint;showRows(transactions);approve.disabled=false;
     statusBox.textContent='راجع '+result.count+' حركة بإجمالي '+(result.totalMinorUnits/100).toFixed(2)+' جنيه، ثم اعتمد.';
   }catch(error){statusBox.textContent=error.message}
   finally{controls.disabled=false}
@@ -841,7 +840,7 @@ file.onchange=async()=>{
   try{
     const data=JSON.parse(await selected.text());
     const result=await call('directConnection.preview',{transactions:data.transactions});
-    transactions=result.transactions;
+    transactions=result.transactions;previewFingerprint=result.fingerprint;
     showRows(transactions);
     statusBox.textContent='عدد الحركات '+result.count+'، الإجمالي '+(result.totalMinorUnits/100).toFixed(2)+' جنيه';
     approve.disabled=false;
@@ -850,8 +849,7 @@ file.onchange=async()=>{
 };
 function batchFailure(error){
   const messages={
-    PASSKEY_ENROLLMENT_UNAVAILABLE:'مفتاح المرور مش مفعّل لحسابك. سجّل المفتاح الأول علشان تعتمد الدفعة.',
-    PASSKEY_APPROVAL_FAILED:'التحقق من مفتاح المرور لم يكتمل. جرّب الاعتماد مرة تانية.',
+    DIRECT_BATCH_CONFIRMATION_REQUIRED:'المعاينة اتغيرت. راجع الدفعة الحالية واعتمدها من جديد قبل التسجيل.',
     DIRECT_BATCH_IN_PROGRESS:'نفس الدفعة لسه بتتسجل. استنى قبل إعادة المحاولة.',
     DIRECT_APPROVAL_EXPIRED:'مدة اعتماد الدفعة انتهت. راجع سجل الحركات الأول للتأكد من اللي اتسجل قبل اعتماد دفعة جديدة.',
     DIRECT_BATCH_SAVE_UNCONFIRMED:'الخادم ما أكدش تسجيل كل الحركات. راجع سجل الحركات قبل إعادة الإرسال.'
@@ -860,15 +858,14 @@ function batchFailure(error){
   return message+(error.requestId?' رقم الطلب '+error.requestId+'.':'');
 }
 approve.onclick=async()=>{
-  approve.disabled=true;file.disabled=true;controls.disabled=true;enrollKey.hidden=true;
-  statusBox.textContent='جارٍ طلب اعتماد الدفعة بمفتاح المرور…';
+  if(!transactions||!previewFingerprint)return;
+  approve.disabled=true;file.disabled=true;controls.disabled=true;
+  statusBox.textContent='جارٍ تثبيت الدفعة التي راجعتها…';
   try{
-    const request=await call('directConnection.approval.begin',{transactions});
-    const proof=await navigator.credentials.get({publicKey:PublicKeyCredential.parseRequestOptionsFromJSON(request.options)});
-    const result=await call('directConnection.approval.finish',{transactions,id:request.id,proof:proof.toJSON()});
+    const result=await call('directConnection.approval.confirm',{transactions,fingerprint:previewFingerprint,confirmed:true});
     if(!result.verified)throw Error('تعذر تأكيد الاعتماد.');
     grantId=result.id;execute.disabled=false;statusBox.textContent='تم اعتماد الدفعة. راجعها ثم اضغط تسجيل.';
-  }catch(error){enrollKey.hidden=error.code!=='PASSKEY_ENROLLMENT_UNAVAILABLE';statusBox.textContent=batchFailure(error);approve.disabled=false;file.disabled=false;controls.disabled=false}
+  }catch(error){statusBox.textContent=batchFailure(error);approve.disabled=false;file.disabled=false;controls.disabled=false}
 };
 execute.onclick=async()=>{
   if(!grantId)return;
