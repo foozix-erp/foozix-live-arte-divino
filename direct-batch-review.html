@@ -160,7 +160,7 @@ const projectAliases=[
   "heliopolis|هليوبوليس",
   "jannaty|جنتي",
   "june|جون",
-  "karma|كرمه|كارما",
+  "karma|كرمه|الكرمه|الكرمة|كارما|الكارما",
   "badyas|بديع",
   "kitchen|مطبخ",
   "new|جديده|جديد",
@@ -337,7 +337,7 @@ function batchFinishItem(text, items){
     [/(?:بناء|طوبه|طوب|كانات|يوميه عامل تشو(?:ي|ب)ن طوب)/u,/^اعمال البناء مصنعيات$/u],
     [/(?:تركيب سيراميك|مبلط سيراميك|مرمات سيراميك)/u,/^اعمال السيراميك مصنعيات$/u],
     [/(?:عزل حمامات|عزل.*مغسله)/u,/^اعمال العزل المائي مصنعيات$/u],
-    [/(?:مون محاره|زوايا? فرسبيكو|اديبوند.*محاره)/u,/^اعمال البناء مشتريات المون والخامات$/u],
+    [/(?:مون محاره|زوايا? فرسبيكو|زوي فرسبيكو|اديبوند.*محاره)/u,/^اعمال البناء مشتريات المون والخامات$/u],
     [/(?:جيبسوم بورد|جبسوم بورد)/u,/^اعمال الجبسوم بورد/u],
     [/(?:مصنعيه|مصنعيات).*رخام/u,/^اعمال الرخام مصنعيات$/u],
     [/(?:مون تغليف).*(?:نجاره|نجارين)/u,/^اعمال النجاره$/u],
@@ -349,7 +349,6 @@ function batchFinishItem(text, items){
     [/(?:نصب|تركيب).*(?:سقاله|سقالات)|فك سقاله/u,/^تجهيز وحمايه الموقع$/u],
     [/(?:يوميه|يوميات).*عامل|عماله/u,/^عماله عامه ويوميات$/u],
     [/(?:شكاير|شكاره)(?: |$)/u,/^مصروفات الموقع$/u],
-    [/(?:^| )مون(?: |$)/u,/^اعمال البناء مشتريات المون والخامات$/u],
     [/مصنعي(?:ه|ات) (?:سباك|السباكه|سباكه)/u,/^اعمال السباكه مصنعيات$/u],
     [/مصنعي(?:ه|ات) (?:كهربائي|الكهرباء|كهرباء)/u,/^اعمال الكهرباء مصنعيات$/u],
     [/مشتريات (?:سيراميك|السيراميك)/u,/^اعمال السيراميك مشتريات$/u],
@@ -364,6 +363,7 @@ function batchFinishItem(text, items){
     [/نقل مون|مصاريف نقل/u,/^(?:نقل|النقل|مصاريف نقل|transport)$/u],
     [/محابس دفن|مشتريات سباكه/u,/^(?:مشتريات سباكه|السباكه|سباكه|plumbing materials)$/u],
     [/مون تغليف|مون تقفيل|سيليكون|اديبوند/u,/^(?:مون|مون وخامات|مون وخمات|materials)$/u]
+    ,[/^مون(?: |$)/u,/^اعمال البناء مشتريات المون والخامات$/u]
   ];
   for(const [phrase,label] of rules){
     if(!phrase.test(normalized))continue;
@@ -1016,6 +1016,9 @@ execute.onclick=async()=>{
       statusBox.textContent='اتأكد تسجيل '+processedRows+' من '+totalRows+' صف. جارٍ استكمال نفس الدفعة…';
     }
     if(!result.complete||!Array.isArray(result.results)||!result.results.length||result.results.some(row=>!row.transactionId||!row.journalId))throw Error('الخادم لم يرجع أرقام الحركات والقيود لتأكيد التسجيل.');
+    await call('directConnection.batch.repairNarratives',{id:grantId});
+    const verification=await call('directConnection.batch.verify',{id:grantId,expectedCount:result.results.length});
+    if(!verification?.ok)throw Error('اكتمل التسجيل لكن فشل فحص المطابقة النهائي. لا تعِد إرسال الدفعة.');
     grantId=undefined;
     try{sessionStorage.removeItem(batchDraftKey);sessionStorage.removeItem(batchAttemptKey);sessionStorage.removeItem(warningKey)}catch{}
     statusBox.textContent='تم تسجيل '+result.results.length+' حركة. أرقام الحركات والقيود ظاهرة في النتيجة.';
@@ -1024,12 +1027,17 @@ execute.onclick=async()=>{
     preview.replaceChildren(list);
   }catch(error){statusBox.textContent=batchFailure(error)+' لو هتعيد المحاولة استخدم نفس الدفعة من الزر هنا.';execute.textContent='إعادة محاولة نفس الدفعة';execute.disabled=error.code==='DIRECT_APPROVAL_EXPIRED'}
 };
+const requestedBatchId=(()=>{
+  const value=new URLSearchParams(location.search).get('resume')||'';
+  return /^[a-f0-9-]{36}$/.test(value)?value:'';
+})();
 call('directConnection.lookups',{}).then(async data=>{
   lookups=data;const restored=await restoreBatchDraft();
-  try{grantId=sessionStorage.getItem(batchAttemptKey)||undefined}catch{}
+  try{grantId=requestedBatchId||sessionStorage.getItem(batchAttemptKey)||undefined}catch{grantId=requestedBatchId||undefined}
   if(grantId){
+    const resumed=await call('directConnection.batch.resume',{id:grantId});
     file.disabled=true;execute.disabled=false;execute.textContent='متابعة نفس الدفعة';
-    statusBox.textContent='فيه محاولة تسجيل سابقة. تابع نفس الدفعة لمعرفة نتيجتها.';
+    statusBox.textContent='تم تأمين نفس الدفعة: '+resumed.saved+' مسجل و'+resumed.remaining+' متبقي. اضغط متابعة نفس الدفعة.';
     return;
   }
   controls.disabled=false;
