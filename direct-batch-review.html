@@ -216,6 +216,8 @@ const projectAliases=[
   "historical|تاريخي"
 ].map(group=>group.split('|').map(normalizeBatchSearch));
 const batchClientAliases = {
+  'yasser mohsen':['ياسر محسن','ياسر'],
+  'ammar':['عمار'],
   'mostafa mohamed':['مصطفى محمد','مصطفي محمد'],
   'ehab atris':['إيهاب عتريس','ايهاب عتريس'],
   'saad mohamed':['سعد محمد'],
@@ -225,7 +227,10 @@ const batchClientAliases = {
   'noha mahmoud':['نهى محمود','نهي محمود','نهي'],
   'shahr badrawy':['شاهر بدراوي','شاهر'],
   'shaher badrawy':['شاهر بدراوي','شاهر'],
+  'shaher badrawi':['شاهر بدراوي','شاهر'],
+  'shahr badrawi':['شاهر بدراوي','شاهر'],
   'ahmed elmadah':['أحمد المداح','احمد المداح'],
+  'ahmed almadah':['أحمد المداح','احمد المداح'],
   'majd elsaeedy':['مجد الصعيدي','مجد السعيدي']
 };
 function batchNameVariants(value,isProject=false,isClient=false){
@@ -249,10 +254,16 @@ function batchNameVariants(value,isProject=false,isClient=false){
     }
     const sarai=variant.match(/^(?:sarai|سراي) s(92|93)a (?:tamer|khaled)$/u);
     if(sarai)names.add('سراي '+sarai[1]);
-    if(/^(?:qoronfel|القرنفل|قرنفل) (?:duplex|دوبلكس|دوبليكس) mr ehab atris$/u.test(variant))names.add('القرنفل دوبليكس');
+    if(/^(?:qoronfel|qoronfels|qoronfil|القرنفل|قرنفل) (?:duplex|دوبلكس|دوبليكس) mr ehab atris$/u.test(variant)){
+      names.add('القرنفل دوبليكس');names.add('القرنفل');names.add('قرنفل');names.add('qoronfel');
+    }
     if(/^(?:emerald|اميرالد) 10a (?:villa|فيلا)$/u.test(variant))names.add('اميرالد');
+    if(/^(?:october hills|اكتوبر هيلز) 2$/u.test(variant)){names.add('october hills');names.add('اكتوبر هيلز')}
+    if(/^(?:granda|جراندا) (?:life|لايف)$/u.test(variant)){names.add('granda');names.add('جراندا')}
     names.add(variant.replace(/ (?:ivilla|i villa|اي فيلا|villa|فيلا|apartment|apart|app|شقه)$/u,''));
-    if(/^(?:joulz villa|جولز فيلا) 325$/u.test(variant)){names.add('جولز 32 5');names.add('joulz 32 5')}
+    if(/^(?:joulz villa|جولز فيلا) 325$/u.test(variant)){
+      names.add('جولز 32 5');names.add('joulz 32 5');names.add('جولز');names.add('joulz');
+    }
   }
   return [...names].filter(name=>name.length>=2);
 }
@@ -321,14 +332,24 @@ function batchFinishItem(text, items){
     normalized&&normalizeBatchSearch(item[name])===normalized));
   if(exact.length)return exact.length===1?exact[0]:undefined;
   const rules=[
+    [/(?:ايجار|تاجير).*(?:مولد|براويطه|هيلتي|معده|معدات|ادوات)/u,/^ايجار معدات وادوات$/u],
     [/(?:^| )نقل(?: |$)/u,/^النقل مون وخامات وتشوين$/u],
     [/(?:بناء|طوبه|طوب|كانات|يوميه عامل تشو(?:ي|ب)ن طوب)/u,/^اعمال البناء مصنعيات$/u],
     [/(?:تركيب سيراميك|مبلط سيراميك|مرمات سيراميك)/u,/^اعمال السيراميك مصنعيات$/u],
     [/(?:عزل حمامات|عزل.*مغسله)/u,/^اعمال العزل المائي مصنعيات$/u],
-    [/(?:مون محاره|زوايا? فرسبيكو|اديبوند.*محاره)/u,/^اعمال المحاره مشتريات/u],
+    [/(?:مون محاره|زوايا? فرسبيكو|اديبوند.*محاره)/u,/^اعمال البناء مشتريات المون والخامات$/u],
     [/(?:جيبسوم بورد|جبسوم بورد)/u,/^اعمال الجبسوم بورد/u],
     [/(?:مصنعيه|مصنعيات).*رخام/u,/^اعمال الرخام مصنعيات$/u],
-    [/(?:مون تغليف).*(?:نجاره|نجارين)/u,/^اعمال النجاره مشتريات$/u],
+    [/(?:مون تغليف).*(?:نجاره|نجارين)/u,/^اعمال النجاره$/u],
+    [/(?:سيراميك حمامات|ماده لزق|ماده لصق|كاده لزق|سقيه).*(?:سيراميك|جولز|هشام|بالم|$)/u,/^اعمال السيراميك مشتريات$/u],
+    [/(?:اديبوند|مون).*(?:رخام)/u,/^اعمال الرخام والجرانيت والاحجار مشتريات$/u],
+    [/(?:قلب كالون|كالون)/u,/^اعمال النجاره ابواب وشبابيك$/u],
+    [/(?:ممارسه كهرباء)/u,/^التامين والمصاريف الاداريه والتصاريح$/u],
+    [/(?:تكسير|تكسر).*(?:شباك|عتبات|ابواب)/u,/^اعمال الازاله والهدم$/u],
+    [/(?:نصب|تركيب).*(?:سقاله|سقالات)|فك سقاله/u,/^تجهيز وحمايه الموقع$/u],
+    [/(?:يوميه|يوميات).*عامل|عماله/u,/^عماله عامه ويوميات$/u],
+    [/(?:شكاير|شكاره)(?: |$)/u,/^مصروفات الموقع$/u],
+    [/(?:^| )مون(?: |$)/u,/^اعمال البناء مشتريات المون والخامات$/u],
     [/مصنعي(?:ه|ات) (?:سباك|السباكه|سباكه)/u,/^اعمال السباكه مصنعيات$/u],
     [/مصنعي(?:ه|ات) (?:كهربائي|الكهرباء|كهرباء)/u,/^اعمال الكهرباء مصنعيات$/u],
     [/مشتريات (?:سيراميك|السيراميك)/u,/^اعمال السيراميك مشتريات$/u],
@@ -701,7 +722,9 @@ function parseBatchText(raw, projects=[], clients=[]){
       /(?:^|\s)من\s+(?:حساب\s+)?(?:CIB|QNB)\s+(?:إلى|الى|إلي|الي|ل)\s*(?:حساب\s+)?(?:CIB|QNB)\b/iu.test(text);
     const bankConflict=namedBanks.length>1&&!directedTransfer;
     const explicitBank=namedBanks.length===1?namedBanks[0]:'';
-    if(/^(CIB|QNB)$/i.test(text)){bank=explicitBank;pending=null;continue}
+    if(/^(CIB|QNB)$/i.test(text)){
+      bank=explicitBank;pending=null;projectContext=group=lastMovement=undefined;continue
+    }
     if(/^(?:(?:CIB|QNB)\s+)?(?:[إأا]جمالي|المجموع)/iu.test(text)){
       totals.push(line);
       if(explicitBank)bank=explicitBank;
@@ -1014,3 +1037,4 @@ call('directConnection.lookups',{}).then(async data=>{
 }).catch(error=>{statusBox.textContent=error.message});
 </script>
 </html>
+
