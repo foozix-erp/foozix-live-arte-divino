@@ -40,6 +40,10 @@ main{width:calc(100% - 1.5rem);max-width:76rem;box-sizing:border-box;overflow:hi
 .source-panel{padding:1rem;border:1px solid #d3e1dc;border-radius:.75rem;background:#f5faf8}
 .source-panel label{display:block;margin-block-end:.35rem;font-weight:700}
 #source-text{display:block;margin-block-end:.65rem}
+.batch-defaults{display:grid;gap:.7rem;margin-top:.8rem;padding:.85rem;border:1px solid #b9d8d0;border-radius:.75rem;background:#fff}
+.batch-defaults[hidden]{display:none}.batch-defaults h2{margin:0;font-size:1rem}.batch-defaults p{margin:0;color:#49685f;font-size:.9rem}
+.batch-defaults-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem}.batch-defaults-grid label{margin:0;font-size:.86rem}.batch-defaults-grid select{width:100%;min-width:0}
+.batch-default-actions{display:flex;gap:.55rem;flex-wrap:wrap}.batch-default-actions .secondary{background:#fff;color:#08634e;border:1px solid #8ebdb2}
 .draft-panel{container-type:inline-size}
 .draft-toolbar{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center}
 .source-jump{color:#08634e;font-weight:600;padding:.35rem .5rem}
@@ -62,6 +66,7 @@ main{width:calc(100% - 1.5rem);max-width:76rem;box-sizing:border-box;overflow:hi
   #rows .wide{grid-column:1/-1}
 }
 @media(max-width:33rem){h1{font-size:1.55rem;line-height:1.3}.source-panel{padding:.75rem}#batch-progress #actions{display:grid;grid-template-columns:1fr}#batch-progress button{width:100%}}
+@media(max-width:33rem){.batch-defaults-grid{grid-template-columns:1fr}.batch-default-actions{display:grid}.batch-default-actions button{width:100%}}
 </style>
 <main>
 <h1>مراجعة دفعة الحركات</h1>
@@ -71,6 +76,19 @@ main{width:calc(100% - 1.5rem);max-width:76rem;box-sizing:border-box;overflow:hi
 <label id="source-label" for="source-text">نص الحركات</label>
 <textarea id="source-text" placeholder="الصق رسالة الحركات هنا زي ما هي، بالتواريخ والحسابات."></textarea>
 <button id="split-text" type="button">إضافة النص للمسودة</button>
+<section id="batch-defaults" class="batch-defaults" hidden aria-labelledby="batch-defaults-title">
+<h2 id="batch-defaults-title">راجع البيانات الناقصة قبل الإضافة</h2>
+<p id="batch-defaults-summary"></p>
+<div class="batch-defaults-grid">
+<label id="batch-default-date-label">الحركات التي بلا تاريخ
+<select id="batch-default-date"><option value="">اختر الإجراء…</option><option value="TODAY">اعتماد تاريخ اليوم</option><option value="REVIEW">تركها فارغة للمراجعة اليدوية</option></select>
+</label>
+<label id="batch-default-account-label">الحركات التي بلا حساب دفع
+<select id="batch-default-account"><option value="">اختر الإجراء…</option><option value="CIB">اعتبارها CIB</option><option value="QNB">اعتبارها QNB</option><option value="CASH">اعتبارها نقدي</option><option value="REVIEW">تركها للمراجعة اليدوية</option></select>
+</label>
+</div>
+<div class="batch-default-actions"><button id="apply-batch-defaults" type="button">تطبيق وإضافة للمسودة</button><button id="cancel-batch-defaults" class="secondary" type="button">رجوع للنص</button></div>
+</section>
 </section>
 <section class="draft-panel" aria-label="مسودة الحركات">
 <div class="draft-toolbar">
@@ -101,10 +119,11 @@ main{width:calc(100% - 1.5rem);max-width:76rem;box-sizing:border-box;overflow:hi
 const statusBox=document.querySelector('#status'),preview=document.querySelector('#preview');
 const approve=document.querySelector('#approve'),execute=document.querySelector('#execute'),file=document.querySelector('#file');
 const endpoint='https://script.google.com/macros/s/AKfycbxgMmDd9VtbtSFY8H_Jd-lFtDj8ToRRhpxfBqZAuSCqCEgAS9s4NJJpj_lw3mUPh9URbQ/exec';
+const MAX_BATCH_ROWS=100;
 let transactions,grantId,previewFingerprint;
 const executeLabel=execute.textContent;
 const controls=document.querySelector('#editor-controls');
-let lookups;
+let lookups,pendingParsedBatch;
 let returnSources;
 const linkedReturnTypes=['PURCHASE_RETURN_CASH','PURCHASE_RETURN_CREDIT','LINKED_CUSTOMER_REFUND'];
 function invalidateApproval(){
@@ -127,7 +146,7 @@ const projectAliases=[
   "mv|mountain view|mountainview|ماونتن فيو|ماونتين فيو|ماونتن ڤيو",
   "midtown|mid town|ميد تاون|ميدتاون",
   "hyde park|hyd park|هايد بارك",
-  "palm hills|بالم هيلز",
+  "palm hills|بالم هيلز|لالم هيلز",
   "october hills|اكتوبر هيلز",
   "joulz|جولز",
   "emerald|اميرالد|ايميرالد",
@@ -197,11 +216,16 @@ const projectAliases=[
   "historical|تاريخي"
 ].map(group=>group.split('|').map(normalizeBatchSearch));
 const batchClientAliases = {
-  'mostafa mohamed':['مصطفى محمد'],
-  'ehab atris':['إيهاب عتريس'],
+  'mostafa mohamed':['مصطفى محمد','مصطفي محمد'],
+  'ehab atris':['إيهاب عتريس','ايهاب عتريس'],
   'saad mohamed':['سعد محمد'],
-  'hisham elemam':['هشام الإمام'],
-  'mohamed alagaty':['محمد العجاتي'],
+  'hisham elemam':['هشام الإمام','هشام امام'],
+  'mohamed alagaty':['محمد العجاتي','العجاتي'],
+  'mahmoud elmaraghy':['محمود المراغي','المراغي'],
+  'noha mahmoud':['نهى محمود','نهي محمود','نهي'],
+  'shahr badrawy':['شاهر بدراوي','شاهر'],
+  'shaher badrawy':['شاهر بدراوي','شاهر'],
+  'ahmed elmadah':['أحمد المداح','احمد المداح'],
   'majd elsaeedy':['مجد الصعيدي','مجد السعيدي']
 };
 function batchNameVariants(value,isProject=false,isClient=false){
@@ -220,7 +244,9 @@ function batchNameVariants(value,isProject=false,isClient=false){
   for(const variant of variants){
     const family=variant.match(/^(بالم هيلز|الاندلس|اندلس)(?: |$)/u);
     if(family)names.add(family[1]==='بالم هيلز'?family[1]:'الاندلس');
-    if(/^(?:palm hills|بالم هيلز) 5 107$/u.test(variant))names.add('بالم هيلز التجمع');
+    if(/^(?:palm hills|بالم هيلز|لالم هيلز) 5 107$/u.test(variant)){
+      names.add('palm hills التجمع');names.add('بالم هيلز التجمع');names.add('لالم هيلز التجمع');
+    }
     const sarai=variant.match(/^(?:sarai|سراي) s(92|93)a (?:tamer|khaled)$/u);
     if(sarai)names.add('سراي '+sarai[1]);
     if(/^(?:qoronfel|القرنفل|قرنفل) (?:duplex|دوبلكس|دوبليكس) mr ehab atris$/u.test(variant))names.add('القرنفل دوبليكس');
@@ -295,7 +321,14 @@ function batchFinishItem(text, items){
     normalized&&normalizeBatchSearch(item[name])===normalized));
   if(exact.length)return exact.length===1?exact[0]:undefined;
   const rules=[
-    [/(?:^| )نقل (?:مون|خامات|مواد)(?: |$)/u,/^النقل مون وخامات وتشوين$/u],
+    [/(?:^| )نقل(?: |$)/u,/^النقل مون وخامات وتشوين$/u],
+    [/(?:بناء|طوبه|طوب|كانات|يوميه عامل تشو(?:ي|ب)ن طوب)/u,/^اعمال البناء مصنعيات$/u],
+    [/(?:تركيب سيراميك|مبلط سيراميك|مرمات سيراميك)/u,/^اعمال السيراميك مصنعيات$/u],
+    [/(?:عزل حمامات|عزل.*مغسله)/u,/^اعمال العزل المائي مصنعيات$/u],
+    [/(?:مون محاره|زوايا? فرسبيكو|اديبوند.*محاره)/u,/^اعمال المحاره مشتريات/u],
+    [/(?:جيبسوم بورد|جبسوم بورد)/u,/^اعمال الجبسوم بورد/u],
+    [/(?:مصنعيه|مصنعيات).*رخام/u,/^اعمال الرخام مصنعيات$/u],
+    [/(?:مون تغليف).*(?:نجاره|نجارين)/u,/^اعمال النجاره مشتريات$/u],
     [/مصنعي(?:ه|ات) (?:سباك|السباكه|سباكه)/u,/^اعمال السباكه مصنعيات$/u],
     [/مصنعي(?:ه|ات) (?:كهربائي|الكهرباء|كهرباء)/u,/^اعمال الكهرباء مصنعيات$/u],
     [/مشتريات (?:سيراميك|السيراميك)/u,/^اعمال السيراميك مشتريات$/u],
@@ -354,12 +387,12 @@ async function restoreBatchDraft(){
   try{draft=JSON.parse(sessionStorage.getItem(batchDraftKey)||'null')}catch{return false}
   if(!draft||!Array.isArray(draft.rows))return false;
   document.querySelector('#source-text').value=draft.text||'';
-  for(const saved of draft.rows.slice(0,50))await addRow({saved});
+  for(const saved of draft.rows.slice(0,MAX_BATCH_ROWS))await addRow({saved});
   return Boolean(draft.text||draft.rows.length);
 }
 async function addRow(draft={}){
   const body=document.querySelector('#rows tbody');
-  if(body.rows.length>=50)throw Error('الحد الأقصى 50 حركة للدفعة.');
+  if(body.rows.length>=MAX_BATCH_ROWS)throw Error('الحد الأقصى '+MAX_BATCH_ROWS+' حركة للدفعة.');
   const row=body.insertRow();
   const labels={expenseItemId:'بند المصروف التشغيلي',transactionDate:'التاريخ',type:'نوع الحركة',clientId:'العميل',projectId:'المشروع',partyId:'المورد',finishItemId:'البند',agreementId:'الاتفاق',amount:'المبلغ',paymentMethod:'طريقة الدفع',accountId:'الحساب',description:'البيان',notes:'الملاحظات',companyBears:'على حساب الشركة'};
   const optional=new Map();
@@ -529,10 +562,6 @@ async function addRow(draft={}){
   }
   type.onchange();
   if(draft.text){
-    const baseline=classifyBatchMovement(draft.text,lookups.movementTypes);
-    const learned=matchBatchLearning(draft.description??draft.text);
-    const suggestedType=baseline||learned?.type||(draft.projectContext&&draft.amount?'PROJECT_EXPENSE':'');
-    if([...type.options].some(option=>option.value===suggestedType)){type.value=suggestedType;type.onchange()}
     const names=['الاسم الإنجليزي','الاسم العربي','الاسم'];
     const matchText=draft.description??draft.text;
     const matchedClient=findBatchMatch(matchText,lookups.clients,'معرف العميل',names);
@@ -540,6 +569,10 @@ async function addRow(draft={}){
     const matchedProject=findBatchMatch(matchText,candidates,'معرف المشروع',names)||
       (draft.projectContext&&(!matchedClient||matchedClient['معرف العميل']===draft.projectContext['معرف العميل'])?
         draft.projectContext:undefined);
+    const baseline=classifyBatchMovement(draft.text,lookups.movementTypes);
+    const learned=matchBatchLearning(draft.description??draft.text);
+    const suggestedType=baseline||learned?.type||(matchedProject&&draft.amount?'PROJECT_EXPENSE':'');
+    if([...type.options].some(option=>option.value===suggestedType)){type.value=suggestedType;type.onchange()}
     const clientId=matchedProject?.['معرف العميل']||matchedClient?.['معرف العميل'];
     if(clientId){client.value=clientId;client.onchange()}
     if(matchedProject){project.value=matchedProject['معرف المشروع'];project.onchange()}
@@ -612,6 +645,10 @@ async function addRow(draft={}){
         target.value=destination[0]['معرف الحساب النقدي'];
       }
     }
+  }else if(draft.paymentDefault==='CASH'){
+    payment.value='CASH';payment.onchange();
+    const cashAccounts=[...account.options].filter(option=>option.value);
+    if(cashAccounts.length===1)account.value=cashAccounts[0].value;
   }else if(draft.bank){
     const matching=lookups.cashAccounts.filter(x=>x['النوع']==='BANK'&&
       String(x['الاسم']).toUpperCase().split(/[^A-Z]+/).includes(draft.bank));
@@ -621,16 +658,27 @@ async function addRow(draft={}){
 const batchEditor=document.querySelector('#batch-editor');
 batchEditor.addEventListener('input',()=>{invalidateApproval();saveBatchDraft()});
 batchEditor.addEventListener('change',saveBatchDraft);
+document.querySelector('#source-text').addEventListener('input',()=>{pendingParsedBatch=undefined;document.querySelector('#batch-defaults').hidden=true});
 document.querySelector('#add-row').onclick=async()=>{try{invalidateApproval();await addRow();saveBatchDraft()}catch(error){statusBox.textContent=error.message}};
-function parseBatchText(raw, projects=[]){
+function parseBatchText(raw, projects=[], clients=[]){
   const drafts=[], totals=[];
+  const paragraphBreak='__FOOZIX_BATCH_PARAGRAPH_BREAK__';
   const lines=String(raw).split(/\r?\n/).flatMap(line=>{
+    if(!line.trim())return [paragraphBreak];
     // Only explicit separators followed by a new amount or payment phrase start another row.
     return line.split(/[;؛](?=\s*(?:(?:[-•]\s*)?[0-9٠-٩۰-۹][0-9٠-٩۰-۹,.٬٫]*\s*(?:جنيه|ج|\s+\p{L})|(?:استلمنا|استلمت|تحصيل|دفعنا)\s+))/u);
-  }).map(line=>line.trim()).filter(Boolean);
+  }).map(line=>line.trim()).filter((line,index,all)=>line&&
+    (line!==paragraphBreak||index===0||all[index-1]!==paragraphBreak));
   const groups=[];
   let date='', bank='', pending=null, projectContext, group, lastMovement;
+  const resolveProject=text=>{
+    const names=['الاسم العربي','الاسم الإنجليزي','الاسم'];
+    const matchedClient=findBatchMatch(text,clients,'معرف العميل',names);
+    const candidates=projects.filter(project=>!matchedClient||project['معرف العميل']===matchedClient['معرف العميل']);
+    return findBatchMatch(text,candidates,'معرف المشروع',names);
+  };
   for(const line of lines){
+    if(line===paragraphBreak){pending=null;projectContext=group=lastMovement=undefined;continue}
     const text=line.replace(/[٠-٩۰-۹]/g,d=>String('٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹'.indexOf(d)%10))
       .replace(/(?<=\d)[,٬](?=\d{3}(?:\D|$))/g,'').replace(/٫/g,'.');
     if(/^[-—–_ـ]{3,}$/.test(text)){pending=null;projectContext=group=lastMovement=undefined;continue}
@@ -681,7 +729,7 @@ function parseBatchText(raw, projects=[]){
     const isInvoice=/فاتور[هة]/u.test(text);
     if(!amount&&!amountConflict&&!pending){
       const heading=text.match(/^(?:مشروع\s*[:：]\s*)?(.+?)\s*[-–—]\s*(.+)$/u);
-      const project=heading&&findBatchMatch(heading[1],projects,'معرف المشروع',['الاسم العربي','الاسم الإنجليزي','الاسم']);
+      const project=heading&&resolveProject(heading[1]+' '+heading[2]);
       if(project){projectContext=project;lastMovement=undefined;continue}
     }
     if(!amount&&!amountConflict&&pending){
@@ -702,14 +750,15 @@ function parseBatchText(raw, projects=[]){
     }
     description=description.replace(/\b(?:CIB|QNB)\b/gi,' ').replace(/^[\s•–—-]+/u,'').replace(/\s+/g,' ').trim();
     if(inlineDate&&rowDate&&rowDate===inlineDate[3]+'-'+inlineDate[2].padStart(2,'0')+'-'+inlineDate[1].padStart(2,'0'))description=description.replace(inlineDate[0].trim(),' ').replace(/\s+/g,' ').trim();
-    const explicitProject=findBatchMatch(description,projects,'معرف المشروع',['الاسم العربي','الاسم الإنجليزي','الاسم']);
+    const explicitProject=resolveProject(description);
     const inheritedProject=explicitProject?undefined:projectContext;
     if(explicitProject&&projectContext&&explicitProject['معرف المشروع']!==projectContext['معرف المشروع']){
       projectContext=group=undefined;
     }
     const draft={date:rowDate,bank:bankConflict?'':explicitBank||bank,amount,text:line,description,
-      projectContext:inheritedProject,explicitBank,bankConflict,amountConflict};
+      projectContext:explicitProject||inheritedProject,explicitBank,bankConflict,amountConflict};
     drafts.push(draft);
+    if(explicitProject)projectContext=explicitProject;
     lastMovement=amount?draft:undefined;
     if(group&&amount)group.rows.push(draft);
     pending=isInvoice&&amount?draft:null;
@@ -720,16 +769,41 @@ function parseBatchText(raw, projects=[]){
   });
   return {drafts,totals,discrepancies};
 }
+function batchToday(){
+  const now=new Date();
+  return new Date(now.getTime()-now.getTimezoneOffset()*60000).toISOString().slice(0,10);
+}
+function batchDraftGaps(parsed){
+  return {
+    missingDate:parsed.drafts.filter(row=>!row.date).length,
+    missingAccount:parsed.drafts.filter(row=>!row.bank&&!row.bankConflict).length,
+    bankConflicts:parsed.drafts.filter(row=>row.bankConflict).length
+  };
+}
+function applyBatchDefaults(parsed,{dateMode='REVIEW',accountMode='REVIEW',today=batchToday()}={}){
+  return {...parsed,drafts:parsed.drafts.map(row=>{
+    const draft={...row};
+    if(!draft.date&&dateMode==='TODAY')draft.date=today;
+    if(!draft.bank&&!draft.bankConflict){
+      if(['CIB','QNB'].includes(accountMode))draft.bank=accountMode;
+      else if(accountMode==='CASH')draft.paymentDefault='CASH';
+    }
+    return draft;
+  })};
+}
 const warningPanel=document.querySelector('#batch-warnings');
 const warningText=document.querySelector('#batch-warning-text');
 const warningReviewed=document.querySelector('#batch-warning-reviewed');
 const warningKey='foozix.batch.warnings.v1';
 try{warningText.textContent=sessionStorage.getItem(warningKey)||'';warningPanel.hidden=!warningText.textContent}catch{}
-document.querySelector('#split-text').onclick=async()=>{
-  const parsed=parseBatchText(document.querySelector('#source-text').value,lookups.projects);
+const defaultsPanel=document.querySelector('#batch-defaults');
+const defaultsSummary=document.querySelector('#batch-defaults-summary');
+const defaultDate=document.querySelector('#batch-default-date');
+const defaultAccount=document.querySelector('#batch-default-account');
+const defaultDateLabel=document.querySelector('#batch-default-date-label');
+const defaultAccountLabel=document.querySelector('#batch-default-account-label');
+async function addParsedBatch(parsed){
   const body=document.querySelector('#rows tbody');
-  if(!parsed.drafts.length){statusBox.textContent='الصق نص الحركات أولاً.';return}
-  if(body.rows.length+parsed.drafts.length>50){statusBox.textContent='الحد الأقصى 50 حركة في الدفعة. أزل صفوفًا أو قسّم النص.';return}
   invalidateApproval();
   for(const row of parsed.drafts)await addRow(row);
   if(parsed.discrepancies.length){
@@ -740,10 +814,44 @@ document.querySelector('#split-text').onclick=async()=>{
     try{sessionStorage.setItem(warningKey,warningText.textContent)}catch{}
   }
   saveBatchDraft();
-  const incomplete=parsed.drafts.filter(row=>!row.date||!row.amount||row.bankConflict).length;
+  const incomplete=parsed.drafts.filter(row=>!row.date||!row.amount||row.bankConflict||(!row.bank&&row.paymentDefault!=='CASH')).length;
   statusBox.textContent='اتضاف '+parsed.drafts.length+' صف للمسودة.'+
     (incomplete?' '+incomplete+' صف يحتاج مراجعة التاريخ أو المبلغ أو الحساب.':'')+
     (parsed.totals.length?' سطور الإجمالي للمراجعة فقط: '+parsed.totals.join('، ')+'.':'');
+}
+document.querySelector('#split-text').onclick=async()=>{
+  const parsed=parseBatchText(document.querySelector('#source-text').value,lookups.projects,lookups.clients);
+  const body=document.querySelector('#rows tbody');
+  if(!parsed.drafts.length){statusBox.textContent='الصق نص الحركات أولاً.';return}
+  if(body.rows.length+parsed.drafts.length>MAX_BATCH_ROWS){statusBox.textContent='الحد الأقصى '+MAX_BATCH_ROWS+' حركة في الدفعة. أزل صفوفًا أو قسّم النص.';return}
+  const gaps=batchDraftGaps(parsed);
+  if(gaps.missingDate||gaps.missingAccount){
+    pendingParsedBatch=parsed;
+    defaultDate.value='';defaultAccount.value='';
+    defaultDateLabel.hidden=!gaps.missingDate;defaultAccountLabel.hidden=!gaps.missingAccount;
+    defaultsSummary.textContent='وجدت '+parsed.drafts.length+' حركة: '+gaps.missingDate+' بلا تاريخ، و'+gaps.missingAccount+' بلا حساب دفع.'+
+      (gaps.bankConflicts?' ويوجد '+gaps.bankConflicts+' تعارض بنك سيظل للمراجعة اليدوية.':'')+
+      ' أي تاريخ أو حساب مكتوب صراحةً لن يتغير.';
+    defaultsPanel.hidden=false;
+    statusBox.textContent='اختار معالجة البيانات الناقصة ثم أضف الحركات للمسودة.';
+    defaultsPanel.scrollIntoView({block:'nearest'});
+    return;
+  }
+  defaultsPanel.hidden=true;pendingParsedBatch=undefined;
+  await addParsedBatch(parsed);
+};
+document.querySelector('#apply-batch-defaults').onclick=async()=>{
+  if(!pendingParsedBatch)return;
+  const gaps=batchDraftGaps(pendingParsedBatch);
+  if(gaps.missingDate&&!defaultDate.value){statusBox.textContent='اختار معالجة الحركات التي بلا تاريخ.';defaultDate.focus();return}
+  if(gaps.missingAccount&&!defaultAccount.value){statusBox.textContent='اختار معالجة الحركات التي بلا حساب دفع.';defaultAccount.focus();return}
+  const parsed=applyBatchDefaults(pendingParsedBatch,{dateMode:defaultDate.value||'REVIEW',accountMode:defaultAccount.value||'REVIEW'});
+  pendingParsedBatch=undefined;defaultsPanel.hidden=true;
+  await addParsedBatch(parsed);
+};
+document.querySelector('#cancel-batch-defaults').onclick=()=>{
+  pendingParsedBatch=undefined;defaultsPanel.hidden=true;
+  statusBox.textContent='لم تتم إضافة النص. عدّل النص أو أعد المحاولة.';
 };
 document.querySelector('#batch-editor').onsubmit=async event=>{
   event.preventDefault();
@@ -835,7 +943,7 @@ function showRows(rows){
 file.onchange=async()=>{
   approve.disabled=true;execute.disabled=true;grantId=undefined;transactions=undefined;preview.replaceChildren();
   const selected=file.files[0];if(!selected)return;
-  if(selected.size>50000){statusBox.textContent='حجم ملف الدفعة أكبر من المسموح.';return}
+  if(selected.size>100000){statusBox.textContent='حجم ملف الدفعة أكبر من المسموح.';return}
   file.disabled=true;
   try{
     const data=JSON.parse(await selected.text());
@@ -875,12 +983,12 @@ execute.onclick=async()=>{
   try{
     let result;
     let previous=0;
-    for(let step=0;step<50;step++){
+    for(let step=0;step<MAX_BATCH_ROWS;step++){
       result=await call('directConnection.execute',{id:grantId,chunked:true});
       if(result?.complete)break;
       const {processedRows,totalRows}=result||{};
       if(!Number.isInteger(processedRows)||!Number.isInteger(totalRows)||
-        processedRows<=previous||processedRows>=totalRows||totalRows>50)break;
+        processedRows<=previous||processedRows>=totalRows||totalRows>MAX_BATCH_ROWS)break;
       previous=processedRows;
       statusBox.textContent='اتأكد تسجيل '+processedRows+' من '+totalRows+' صف. جارٍ استكمال نفس الدفعة…';
     }
