@@ -1392,7 +1392,7 @@ window.addEventListener('afterprint',restoreCompanyPrintAmounts_);
 
 const txDynamicFieldsEmployeeBase_=txDynamicFields;
 txDynamicFields=function(type){const html=txDynamicFieldsEmployeeBase_(type);return type==='PAYROLL_PAYMENT'?txSelectSmart('employeeId',t('employee'),state.data.employees||[],'معرف الموظف')+html:html};
-const CLIENT_BUILD_='5.0.99';
+const CLIENT_BUILD_='5.0.100';
 let financialRevision_=null,financialRefreshBusy_=false,financialStale_=false,financialVersionMismatch_=false,financialRefreshFailed_=false,financialReadAt_='',financialAutoRefreshTimer_=0;
 const financialReadViews_=new Set(['dashboard','projects','finance','reports','parties','tasks','clients','employees','loans','assets','audit']);
 const financialDirtyForms_=new WeakSet();
@@ -1422,6 +1422,7 @@ const financialLoadBase_=load;
 load=async function(){
   if(!financialReadViews_.has(state.view))return financialLoadBase_();
   const viewAtStart=state.view;
+  const before=await financialReadRevision_();
   await financialLoadBase_();
   if(viewAtStart==='dashboard'&&Array.isArray(state.data.projects)){
     state.data.projectFinancialSummary=buildProjectFinancialSummary_(state.data.projects);
