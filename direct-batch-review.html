@@ -576,6 +576,7 @@ async function addRow(draft={}){
     agreements();
   };
   payment.onchange=()=>{
+    account.closest('label').firstChild.textContent=payment.value==='CASH'?'الخزينة النقدية':'الحساب البنكي';
     const rows=lookups.cashAccounts.filter(x=>x['النوع']===(payment.value==='CASH'?'CASH':'BANK'));
     account.replaceChildren(...picker(rows,'معرف الحساب النقدي').options);
     if(payment.value==='CASH'){const chosen=rows.find(x=>x['معرف الحساب النقدي']===lookups.defaultCashAccountId)||rows.find(x=>x['معرف الحساب النقدي']==='FOOZIX-CASH-MAIN')||(rows.length===1?rows[0]:null);if(chosen)account.value=chosen['معرف الحساب النقدي'];}
