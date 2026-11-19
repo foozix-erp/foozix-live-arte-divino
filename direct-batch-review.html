@@ -483,6 +483,7 @@ async function addRow(draft={}){
   const expense=put('expenseItemId',picker(lookups.expenseItems,'معرف بند المصروف'));
   const target=extraPicker('transferTargetId','الحساب المستلم للتحويل',lookups.cashAccounts,'معرف الحساب النقدي');
   const original=extraPicker('originalId','الحركة الأصلية',[],'id');
+  const disposition=extraPicker('returnDisposition','مصير مبلغ المرتجع',[{id:'KEEP_IN_COMPANY','الاسم':'يظل في خزينة الشركة لصالح المشروع'},{id:'REFUND_CLIENT','الاسم':'استرداد ثم رد المبلغ للعميل'}],'id');
   original.disabled=true;
   const assetLocation=extra('assetLocation','موقع الأصل','text','');
   extra('clientAccount','حساب / مرجع العميل','text','آخر');
@@ -494,6 +495,7 @@ async function addRow(draft={}){
     const selectedType=type.value;
     const linked=linkedReturnTypes.includes(selectedType);
     const paired=selectedType==='UNLINKED_PURCHASE_RETURN';
+    disposition.disabled=!paired;disposition.required=paired;disposition.closest('label').hidden=!paired;if(paired)details.open=true;
     const projectType=paired||['PROJECT_EXPENSE','CUSTOMER_RECEIPT','CUSTOMER_REFUND','CUSTOMER_DIRECT_PAYMENT','PROJECT_INVOICE'].includes(type.value);
     for(const option of payment.options)option.disabled=paired&&option.value!=='CASH';
     if(paired&&payment.value!=='CASH'){payment.value='CASH';payment.onchange()}
@@ -921,6 +923,7 @@ document.querySelector('#batch-editor').onsubmit=async event=>{
         item.originalId=get('originalId').value;
         item.originalVersion=returnSources?.find(x=>x.id===item.originalId)?.version;
       }
+      if(item.type==='UNLINKED_PURCHASE_RETURN')item.returnDisposition=get('returnDisposition').value;
       if(item.type==='INTERNAL_TRANSFER')item.targetAccountId=get('transferTargetId').value;
       if(item.expenseItemId){
         const expense=lookups.expenseItems.find(x=>x['معرف بند المصروف']===item.expenseItemId);
@@ -969,7 +972,7 @@ function showRows(rows){
     const item=lookups?.[list]?.find(x=>String(x[key])===String(id));
     return item?.['الاسم العربي']||item?.['الاسم الإنجليزي']||item?.['الاسم']||item?.['الوصف']||id||'—';
   };
-  for(const title of ['التاريخ','نوع الحركة','المشروع','العميل','المورد','البند','حساب الدفع','حساب الاستلام','البيان','الملاحظات','المرفق','المبلغ']){
+  for(const title of ['التاريخ','نوع الحركة','المشروع','العميل','المورد','البند','حساب الدفع','حساب الاستلام','البيان','الملاحظات','المرفق','المبلغ','مصير المرتجع']){
     const th=document.createElement('th');th.textContent=title;head.append(th);
   }
   const body=table.createTBody();
@@ -979,7 +982,7 @@ function showRows(rows){
     for(const value of [row.transactionDate,type,label('projects','معرف المشروع',row.projectId),
       label('clients','معرف العميل',row.clientId),label('parties','معرف الطرف',row.partyId),
       label('finishItems','معرف البند',row.finishItemId),label('cashAccounts','معرف الحساب النقدي',row.sourceAccountId),
-      label('cashAccounts','معرف الحساب النقدي',row.targetAccountId),row.description,row.notes,row.documentId?'مرفق':'—',Number(row.amount).toFixed(2)]){
+      label('cashAccounts','معرف الحساب النقدي',row.targetAccountId),row.description,row.notes,row.documentId?'مرفق':'—',Number(row.amount).toFixed(2),row.returnDisposition==='KEEP_IN_COMPANY'?'يبقى في خزينة الشركة':row.returnDisposition==='REFUND_CLIENT'?'استرداد ثم رد للعميل':'—']){
       const cell=tr.insertCell();cell.dataset.label=head.cells[cell.cellIndex].textContent;cell.textContent=String(value||'');
     }
   }
