@@ -228,7 +228,7 @@ const batchClientAliases = {
   'ammar':['عمار'],
   'mostafa mohamed':['مصطفى محمد','مصطفي محمد'],
   'ehab atris':['إيهاب عتريس','ايهاب عتريس'],
-  'saad mohamed':['سعد محمد'],
+  'saad mohamed':['سعد محمد','سعد'],
   'hisham elemam':['هشام الإمام','هشام امام'],
   'mohamed alagaty':['محمد العجاتي','العجاتي'],
   'mahmoud elmaraghy':['محمود المراغي','المراغي'],
@@ -321,7 +321,9 @@ function classifyBatchMovement(text, movementTypes){
     ['PURCHASE_RETURN_CASH','PURCHASE_RETURN_CREDIT','LINKED_CUSTOMER_REFUND','UNLINKED_PURCHASE_RETURN','CUSTOMER_REFUND'].includes(id)
   ).map(([id,label])=>({id,label})),'id',['label']);
   if(returns)return returns.id;
+  if(has(/(?:^| )مرتجع(?: |$)/u)&&has(/(?:^| )(?:كاش|نقدي|cash)(?: |$)/u))return 'UNLINKED_PURCHASE_RETURN';
   if(has(/(?:^| )مرتجع(?: |$)/u))return '';
+  if(has(/(?:^| )(?:اعلانات|اعلان|دعايه)(?: |$)/u))return 'OPERATING_EXPENSE';
   const design=has(/(?:^| )(?:التصميم|تصميم|تصميمات|التصميمات|ديزاين|ديزين|design)(?: |$)/u);
   const incoming=has(/(?:^| )(?:استلمنا|استلمت|استلام مبلغ|تحصيل|تم التحصيل|وصلنا|قبضنا)(?: |$)/u);
   const outgoing=has(/(?:^| )(?:مصروف مشروع|دفع مورد|دفع مقاول|و?دفعنا|دفعنا للمصمم|اتدفع للمصمم|مشتريات|مون نقاشه|نقل مون|دف(?:عه|عات) زجاج|محابس دفن|ايجار شقه|اجور عمال|مصنعي(?:ه|ات) (?:سباك|كهربائي))(?: |$)/u);
@@ -340,6 +342,8 @@ function batchFinishItem(text, items){
     normalized&&normalizeBatchSearch(item[name])===normalized));
   if(exact.length)return exact.length===1?exact[0]:undefined;
   const rules=[
+    [/مبيض|محاره/u,/^اعمال المحاره مصنعيات$/u],
+    [/حوض|ستانلس/u,/^اعمال السباكه مشتريات$/u],
     [/^(?!.*(?:مون|مشتريات|خامات|جوتن|فاتوره)).*(?:^| )(?:نقاش|نقاشه)(?: |$)/u,/^اعمال الدهانات مصنعيات$/u],
     [/(?:دف(?:عه|عات)|تركيب|مصنعيه|مصنعيات).*رخام|رخام.*(?:تلفزيون|تليفزيون|مكتبه|كونسول)/u,/^اعمال الرخام مصنعيات$/u],
     [/(?:ايجار|تاجير).*(?:مولد|براويطه|هيلتي|معده|معدات|ادوات)/u,/^ايجار معدات وادوات$/u],
@@ -388,7 +392,8 @@ function summarizeBatchDescription(text){
     .replace(/^فاتور[هة]\s+ب\s?قيم[هة](?=\s|$)/u,'فاتورة')
     .replace(/(?:^|\s)(?:بتاريخ|تاريخ)\s+\d{1,2}[/-]\d{1,2}(?:[/-]\d{4})?(?=\s|$)/gu,' ')
     .replace(/\s+(?:في|من|لدى|من\s+حساب|على\s+حساب)\s*$/u,'');
-  return normalized.replace(/\s+/g,' ').replace(/^[\s،,:؛/—–-]+|[\s،,:؛/—–-]+$/g,'').trim();
+  const result=normalized.replace(/\s+/g,' ').replace(/^[\s،,:؛/—–-]+|[\s،,:؛/—–-]+$/g,'').trim();
+  return /^(?:من|مبلغ|جنيه)?$/u.test(result)?'دفعة من العميل':result;
 }
 const batchLearningKey='foozix.batch.classification.v1';
 function batchLearning(){
@@ -573,6 +578,7 @@ async function addRow(draft={}){
   payment.onchange=()=>{
     const rows=lookups.cashAccounts.filter(x=>x['النوع']===(payment.value==='CASH'?'CASH':'BANK'));
     account.replaceChildren(...picker(rows,'معرف الحساب النقدي').options);
+    if(payment.value==='CASH'){const chosen=rows.find(x=>x['معرف الحساب النقدي']===lookups.defaultCashAccountId)||rows.find(x=>x['معرف الحساب النقدي']==='FOOZIX-CASH-MAIN')||(rows.length===1?rows[0]:null);if(chosen)account.value=chosen['معرف الحساب النقدي'];}
   };
   if(draft.saved){
     const fields=draft.saved;
@@ -605,8 +611,8 @@ async function addRow(draft={}){
     const suggestedType=baseline||learned?.type||(matchedProject&&draft.amount?'PROJECT_EXPENSE':'');
     if([...type.options].some(option=>option.value===suggestedType)){type.value=suggestedType;type.onchange()}
     const clientId=matchedProject?.['معرف العميل']||matchedClient?.['معرف العميل'];
-    if(clientId){client.value=clientId;client.onchange()}
-    if(matchedProject){project.value=matchedProject['معرف المشروع'];project.onchange()}
+    if(clientId&&!client.disabled){client.value=clientId;client.onchange()}
+    if(matchedProject&&!project.disabled){project.value=matchedProject['معرف المشروع'];project.onchange()}
     const description=row.querySelector('[name=description]');
     const cleanSelectedNames=()=>{
       if(description.dataset.edited)return;
@@ -625,6 +631,7 @@ async function addRow(draft={}){
     const matchedParty=findBatchMatch(draft.text,lookups.parties,'معرف الطرف',names);
     if(matchedParty&&!party.disabled){party.value=matchedParty['معرف الطرف'];party.onchange()}
     const matchedItem=batchFinishItem(matchText,lookups.finishItems);
+    if(type.value==='OPERATING_EXPENSE'){const expenseMatch=(lookups.expenseItems||[]).filter(x=>/اعلان|تسويق|دعايه/iu.test(normalizeBatchSearch(x['البند الفرعي']||'')));if(expenseMatch.length===1)expense.value=expenseMatch[0]['معرف بند المصروف'];}
     const learnedItem=learned?.type===type.value?learned.item:'';
     if(!finish.disabled){
       const suggestedItem=learnedItem||matchedItem?.['معرف البند'];
@@ -732,6 +739,7 @@ function parseBatchText(raw, projects=[], clients=[]){
       /(?:^|\s)من\s+(?:حساب\s+)?(?:CIB|QNB)\s+(?:إلى|الى|إلي|الي|ل)\s*(?:حساب\s+)?(?:CIB|QNB)\b/iu.test(text);
     const bankConflict=namedBanks.length>1&&!directedTransfer;
     const explicitBank=namedBanks.length===1?namedBanks[0]:'';
+    const explicitCash=/(?:^|\s)(?:كاش|نقدي|نقدى|cash)(?=\s|$)/iu.test(text);
     if(/^(CIB|QNB)$/i.test(text)){
       bank=explicitBank;pending=null;projectContext=group=lastMovement=undefined;continue
     }
@@ -788,7 +796,8 @@ function parseBatchText(raw, projects=[], clients=[]){
     if(explicitProject&&projectContext&&explicitProject['معرف المشروع']!==projectContext['معرف المشروع']){
       projectContext=group=undefined;
     }
-    const draft={date:rowDate,bank:bankConflict?'':explicitBank||bank,amount,text:line,description,
+    description=description.replace(/(?:^|\s)(?:كاش|نقدي|نقدى|cash)(?=\s|$)/giu,' ').replace(/\s+/g,' ').trim();
+    const draft={date:rowDate,bank:bankConflict||explicitCash?'':explicitBank||bank,paymentDefault:explicitCash?'CASH':undefined,amount,text:line,description,
       projectContext:explicitProject||inheritedProject,explicitBank,bankConflict,amountConflict};
     drafts.push(draft);
     if(explicitProject)projectContext=explicitProject;
@@ -809,7 +818,7 @@ function batchToday(){
 function batchDraftGaps(parsed){
   return {
     missingDate:parsed.drafts.filter(row=>!row.date).length,
-    missingAccount:parsed.drafts.filter(row=>!row.bank&&!row.bankConflict).length,
+    missingAccount:parsed.drafts.filter(row=>!row.bank&&row.paymentDefault!=='CASH'&&!row.bankConflict).length,
     bankConflicts:parsed.drafts.filter(row=>row.bankConflict).length
   };
 }
@@ -817,7 +826,7 @@ function applyBatchDefaults(parsed,{dateMode='REVIEW',accountMode='REVIEW',today
   return {...parsed,drafts:parsed.drafts.map(row=>{
     const draft={...row};
     if(!draft.date&&dateMode==='TODAY')draft.date=today;
-    if(!draft.bank&&!draft.bankConflict){
+    if(!draft.bank&&draft.paymentDefault!=='CASH'&&!draft.bankConflict){
       if(['CIB','QNB'].includes(accountMode))draft.bank=accountMode;
       else if(accountMode==='CASH')draft.paymentDefault='CASH';
     }
