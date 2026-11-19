@@ -141,7 +141,7 @@ function invalidateApproval(){
 function picker(rows,id,label){
   const select=document.createElement('select');
   select.add(new Option('اختيار…',''));
-  for(const row of rows||[])select.add(new Option(label?label(row):(row['الاسم الإنجليزي']||row['الاسم العربي']||row['الاسم']||row['الوصف']||row[id]),row[id]));
+  for(const row of rows||[])select.add(new Option(label?label(row):(row['البند الفرعي']?[row['المجموعة الرئيسية'],row['البند الفرعي']].filter(Boolean).join(' — '):row['الاسم الإنجليزي']||row['الاسم العربي']||row['الاسم']||row['الوصف']||row[id]),row[id]));
   return select;
 }
 function normalizeBatchSearch(text){
@@ -340,6 +340,8 @@ function batchFinishItem(text, items){
     normalized&&normalizeBatchSearch(item[name])===normalized));
   if(exact.length)return exact.length===1?exact[0]:undefined;
   const rules=[
+    [/^(?!.*(?:مون|مشتريات|خامات|جوتن|فاتوره)).*(?:^| )(?:نقاش|نقاشه)(?: |$)/u,/^اعمال الدهانات مصنعيات$/u],
+    [/(?:دف(?:عه|عات)|تركيب|مصنعيه|مصنعيات).*رخام|رخام.*(?:تلفزيون|تليفزيون|مكتبه|كونسول)/u,/^اعمال الرخام مصنعيات$/u],
     [/(?:ايجار|تاجير).*(?:مولد|براويطه|هيلتي|معده|معدات|ادوات)/u,/^ايجار معدات وادوات$/u],
     [/(?:^| )نقل(?: |$)/u,/^النقل مون وخامات وتشوين$/u],
     [/(?:بناء|طوبه|طوب|كانات|يوميه عامل تشو(?:ي|ب)ن طوب)/u,/^اعمال البناء مصنعيات$/u],
@@ -945,7 +947,9 @@ async function call(action,payload){
   const result=await response.json();
   if(!response.ok||!result.ok){
     const error=new Error(result.messageAr||'تعذر تنفيذ الطلب.');
-    error.code=result.code;error.requestId=result.requestId;throw error;
+    error.code=result.code;error.requestId=result.requestId;error.batchRow=result.batchRow;
+    if(result.batchRow){const row=document.querySelector('#rows tbody')?.rows[result.batchRow-1];if(row){row.style.outline='2px solid #dc3545';const name=['sourceAccountId','targetAccountId'].includes(result.batchField)?'accountId':result.batchField;const field=[...row.querySelectorAll('[name]')].find(input=>input.name===name);if(field){const panel=field.closest('details');if(panel)panel.open=true;field.setAttribute('aria-invalid','true');field.addEventListener('change',()=>{field.removeAttribute('aria-invalid');row.style.outline='';},{once:true});field.focus();}row.scrollIntoView({block:'center',behavior:'smooth'});}}
+    throw error;
   }
   return result.data;
 }

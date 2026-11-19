@@ -1422,7 +1422,7 @@ window.addEventListener('afterprint',restoreCompanyPrintAmounts_);
 
 const txDynamicFieldsEmployeeBase_=txDynamicFields;
 txDynamicFields=function(type){const html=txDynamicFieldsEmployeeBase_(type);return type==='PAYROLL_PAYMENT'?txSelectSmart('employeeId',t('employee'),state.data.employees||[],'معرف الموظف')+html:html};
-const CLIENT_BUILD_='5.0.106';
+const CLIENT_BUILD_='5.0.107';
 let financialRevision_=null,financialRefreshBusy_=false,financialStale_=false,financialVersionMismatch_=false,financialRefreshFailed_=false,financialReadAt_='',financialAutoRefreshTimer_=0;
 const financialReadViews_=new Set(['dashboard','projects','finance','reports','parties','tasks','clients','employees','loans','assets','audit']);
 const financialDirtyForms_=new WeakSet();
@@ -1873,7 +1873,7 @@ detailTable_=function(report){
   return statementTools_(all,visible)+body;
 };
 const statementReportOutputBase_=reportOutput;
-reportOutput=function(report){const html=statementReportOutputBase_(report);return state.data.reportMode==='detail'?html.replace('id="reportOutput" class="formal-report"','id="reportOutput" class="formal-report project-statement-report"'):html};
+reportOutput=function(report){let html=statementReportOutputBase_(report);const ar=state.lang==='ar',direct=Number(report.directClientPayments||0),funding=Number(report.totalClientFunding??(Number(report.receipts||0)+direct));const fundingSummary=`<section class="report-summary direct-funding-summary"><h3>${ar?'تمويل العميل':'Client funding'}</h3><div><span>${ar?'دفعات دخلت حسابات الشركة':'Receipts into company accounts'}</span><strong>${money(report.receipts)}</strong></div><div><span>${ar?'دفع مباشر من العميل للموردين والمقاولين':'Client payments directly to suppliers and contractors'}</span><strong>${money(direct)}</strong></div><div class="grand"><span>${ar?'إجمالي تمويل العميل':'Total client funding'}</span><strong>${money(funding)}</strong></div></section>`;html=html.replace('<div class="report-rate">',fundingSummary+'<div class="report-rate">');return state.data.reportMode==='detail'?html.replace('id="reportOutput" class="formal-report"','id="reportOutput" class="formal-report project-statement-report"'):html};
 function statementRenderFocus_(id,selectionStart){render();requestAnimationFrame(()=>{const input=document.getElementById(id);if(!input)return;input.focus({preventScroll:true});if(Number.isFinite(selectionStart)&&input.setSelectionRange)input.setSelectionRange(selectionStart,selectionStart)})}
 let statementSearchTimer_=null;
 document.addEventListener('input',event=>{
