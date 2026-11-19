@@ -48,10 +48,18 @@ main{width:calc(100% - 1.5rem);max-width:76rem;box-sizing:border-box;overflow:hi
 .draft-toolbar{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center}
 .source-jump{color:#08634e;font-weight:600;padding:.35rem .5rem}
 @media(min-width:64rem) and (min-height:28rem){
-  main{width:calc(100% - 2rem);max-width:94rem}
-  .batch-layout{grid-template-columns:minmax(16rem,1fr) minmax(0,2.5fr)}
-  .source-panel{position:sticky;top:1rem}
-  #source-text{height:min(52vh,32rem);max-height:calc(100vh - 10rem);resize:none}
+  html,body{height:100%;overflow:hidden}
+  main{width:calc(100% - 1rem);max-width:94rem;height:calc(100vh - 1rem);margin:.5rem auto;padding:1rem;overflow:hidden;display:flex;flex-direction:column}
+  main>h1{flex:0 0 auto}
+  #batch-editor,#editor-controls,.batch-layout{min-height:0;flex:1}
+  #batch-editor{display:flex;flex-direction:column;overflow:hidden}
+  #editor-controls{display:flex;flex-direction:column;overflow:hidden}
+  .batch-layout{grid-template-columns:minmax(18rem,32%) minmax(0,1fr);overflow:hidden}
+  .source-panel,.draft-panel{height:100%;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
+  .source-panel{position:relative;top:auto;display:flex;flex-direction:column}
+  #source-text{flex:1;min-height:14rem;height:auto;max-height:none;resize:none}
+  .draft-panel{padding-inline-end:.25rem}
+  #batch-progress{flex:0 0 auto}
   .source-jump{display:none}
 }
 @media(max-width:63.999rem), (max-height:27.999rem){
@@ -1045,4 +1053,3 @@ call('directConnection.lookups',{}).then(async data=>{
 }).catch(error=>{statusBox.textContent=error.message});
 </script>
 </html>
-
