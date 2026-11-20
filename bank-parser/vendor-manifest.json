@@ -7,11 +7,11 @@
   "files": [
     {
       "name": "reader.mjs",
-      "sha256": "173a97955fa8de6786a70b7fce136049bd4628c7b9bdcf2014af07163a1cda7e"
+      "sha256": "c0d9453317f04ced119680142c7974d415eca9736d9c44cad4afbd26c6f6754d"
     },
     {
       "name": "parser-core.mjs",
-      "sha256": "f2089140f8da56e5a3b15ad386f45ee9b37c23357487fc03ba4d88b0ed36e84c"
+      "sha256": "52636cb10c9898523e03affaf9e3a09bb85489e18874a035abf0b6051abb4e27"
     },
     {
       "name": "README.md",

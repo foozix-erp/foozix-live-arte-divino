@@ -44,6 +44,16 @@ export function parseCibPages(pages){
     const headings=Object.fromEntries(['Withdrawal','Deposit','Balance'].map(label=>[label,words.find(w=>w.text===label)]));
     if(Object.values(headings).some(w=>!w)){if(/Movement Details/.test(fullText))extractionErrors.push({page:pageIndex+1,code:'COLUMN_HEADINGS_UNREADABLE'});continue;}
     const starts=words.filter(w=>w.x<65&&/^\d{2}\/\d{2}\/\d{2,4}$/.test(w.text)&&w.top>headings.Balance.top).sort((a,b)=>a.top-b.top);
+    // A statement can split a description over pages without repeating its date.
+    // Only attach text from the description column below the complete header and
+    // above the first dated row; never create a second financial occurrence.
+    const headerBottom=Math.max(headings.Balance.top,...words.filter(w=>w.top>=headings.Balance.top&&w.top<headings.Balance.top+20&&/^(Date|Reference|Number)$/.test(w.text)).map(w=>w.top));
+    const continuation=words.filter(w=>w.top>headerBottom+2&&w.top<(starts[0]?.top??page.height-20)&&w.x>=175&&w.x<headings.Withdrawal.x-5&&!/Total in Account Currency/.test(w.text));
+    const previous=rows.at(-1);
+    if(previous&&previous.page===pageIndex&&continuation.length){
+      previous.description+=' '+continuation.map(w=>w.text).join(' ');
+      previous.descriptionContinuationPages=[...(previous.descriptionContinuationPages||[]),pageIndex+1];
+    }
     for(const [index,start] of starts.entries()){
       const same=words.filter(w=>Math.abs(w.top-start.top)<3);let date=start.text;
       if(date.length===8){const suffix=words.find(w=>w.x>=start.x&&w.x<start.right&&w.top-start.top>0&&w.top-start.top<16&&/^\d{2}$/.test(w.text));if(suffix)date+=suffix.text;}

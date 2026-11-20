@@ -1,4 +1,4 @@
-import {parseCibPages,parseQnbRows} from './parser-core.mjs';
+import {parseCibPages,parseQnbRows} from './parser-core.mjs?v=5.0.113';
 let excelPromise;
 function excel(){
   if(globalThis.XLSX)return Promise.resolve(globalThis.XLSX);

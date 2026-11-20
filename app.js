@@ -1434,7 +1434,7 @@ window.addEventListener('afterprint',restoreCompanyPrintAmounts_);
 
 const txDynamicFieldsEmployeeBase_=txDynamicFields;
 txDynamicFields=function(type){const html=txDynamicFieldsEmployeeBase_(type);return type==='PAYROLL_PAYMENT'?txSelectSmart('employeeId',t('employee'),state.data.employees||[],'معرف الموظف')+html:html};
-const CLIENT_BUILD_='5.0.112';
+const CLIENT_BUILD_='5.0.113';
 let financialRevision_=null,financialRefreshBusy_=false,financialStale_=false,financialVersionMismatch_=false,financialRefreshFailed_=false,financialReadAt_='',financialAutoRefreshTimer_=0;
 const financialReadViews_=new Set(['dashboard','projects','finance','reports','parties','tasks','clients','employees','loans','assets','audit']);
 const financialDirtyForms_=new WeakSet();
@@ -1914,7 +1914,7 @@ async function readBankSourceFile_(file){
   const generation=++bankImportState_.generation;Object.assign(bankImportState_,{file:file,result:null,documentId:'',reading:true,error:'',coverageConfirmed:false});render();
   try{
     const base=/googleusercontent\.com|script\.google\.com/.test(location.hostname)?'https://foozix-erp.github.io/foozix-live-arte-divino/':new URL('.',location.href).href;
-    const reader=await import(new URL('bank-parser/reader.mjs',base).href),result=await reader.parseBankFile(file);if(generation!==bankImportState_.generation)return;
+    const reader=await import(new URL('bank-parser/reader.mjs?v='+encodeURIComponent(CLIENT_BUILD_),base).href),result=await reader.parseBankFile(file);if(generation!==bankImportState_.generation)return;
     bankImportState_.result=result;const accounts=(state.data.cashAccounts||[]).filter(a=>a['النوع']==='BANK'&&String(a['البنك']||a['الاسم']).toUpperCase().includes(result.bank));if(!accounts.some(a=>a['معرف الحساب النقدي']===bankImportState_.accountId))bankImportState_.accountId=accounts.length===1?accounts[0]['معرف الحساب النقدي']:'';
   }catch(error){if(generation===bankImportState_.generation)bankImportState_.error=state.lang==='ar'?'تعذرت قراءة الكشف بصورة موثوقة. استخدم PDF نصيًا واضحًا من CIB أو ملف Excel الأصلي من QNB.':'The statement could not be read reliably. Use a readable CIB PDF or the original QNB Excel file.';}
   finally{if(generation===bankImportState_.generation){bankImportState_.reading=false;render();}}
