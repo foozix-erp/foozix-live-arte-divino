@@ -1,0 +1,41 @@
+{
+  "formatVersion": 1,
+  "libraries": {
+    "pdfjs": "6.5.438",
+    "sheetjs": "0.20.3"
+  },
+  "files": [
+    {
+      "name": "reader.mjs",
+      "sha256": "173a97955fa8de6786a70b7fce136049bd4628c7b9bdcf2014af07163a1cda7e"
+    },
+    {
+      "name": "parser-core.mjs",
+      "sha256": "dcaf42ad277201dd1542672664915d7f284aef4efe7e59d00499cb3f3a10052b"
+    },
+    {
+      "name": "README.md",
+      "sha256": "deeeb2e861d55284176f58982671cb1dda7448b866e6ee62726810803687effe"
+    },
+    {
+      "name": "vendor/pdf-6.5.438.min.mjs",
+      "sha256": "3a88402882cfa3e7e72c2c9b5149f52f0f88baf1c5b62aa11a41abdbc2072440"
+    },
+    {
+      "name": "vendor/pdf.worker-6.5.438.min.mjs",
+      "sha256": "1e64c8240e54735ec5913b37acd5134747799cb8c6bb3777c70adbc01232d2aa"
+    },
+    {
+      "name": "vendor/xlsx.full-0.20.3.min.js",
+      "sha256": "cc015130aa8521e7f088f88898eba949ccdcbfb38df0bd129b44b7273c3a6f41"
+    },
+    {
+      "name": "vendor/PDFJS-LICENSE.txt",
+      "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594"
+    },
+    {
+      "name": "vendor/SHEETJS-LICENSE.txt",
+      "sha256": "4d2a38ac35cda06a555c84074a819d413339cd3691b822cae50f8f322fe01f64"
+    }
+  ]
+}
