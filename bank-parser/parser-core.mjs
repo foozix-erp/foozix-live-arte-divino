@@ -12,15 +12,22 @@ export function sourceDate(value){
   return iso;
 }
 export function auditSourceRows(rows,openingMinor,closingMinor){
-  const issues=[];let balance=openingMinor;
+  const issues=[];let balance=Number.isSafeInteger(openingMinor)?openingMinor:null,totalMovement=0;
+  if(balance===null)issues.push({code:'SOURCE_OPENING_BALANCE_MISSING'});
+  if(!Number.isSafeInteger(closingMinor))issues.push({code:'SOURCE_CLOSING_BALANCE_MISSING'});
   rows.forEach((r,index)=>{
+    if(!Number.isSafeInteger(r.debitMinor)||!Number.isSafeInteger(r.creditMinor)||r.debitMinor<0||r.creditMinor<0||Boolean(r.debitMinor)===Boolean(r.creditMinor)){issues.push({code:'SOURCE_ROW_DIRECTION_OR_AMOUNT_INVALID',index});balance=null;totalMovement=null;return;}
     if(r.balanceMinor===null)issues.push({code:'SOURCE_BALANCE_MISSING',index});
-    const expected=balance+r.creditMinor-r.debitMinor;
-    if(r.balanceMinor!==null&&expected!==r.balanceMinor)issues.push({code:'SOURCE_RUNNING_BALANCE',index,differenceMinor:r.balanceMinor-expected});
+    else if(!Number.isSafeInteger(r.balanceMinor)){issues.push({code:'SOURCE_BALANCE_INVALID',index});balance=null;totalMovement=null;return;}
+    const expected=balance===null?null:balance+r.creditMinor-r.debitMinor;
+    if(expected!==null&&!Number.isSafeInteger(expected))throw Error('SOURCE_AMOUNT_OVERFLOW');
+    if(expected!==null&&r.balanceMinor!==null&&expected!==r.balanceMinor)issues.push({code:'SOURCE_RUNNING_BALANCE',index,differenceMinor:r.balanceMinor-expected});
     balance=r.balanceMinor===null?expected:r.balanceMinor;
+    if(totalMovement!==null){totalMovement+=r.creditMinor-r.debitMinor;if(!Number.isSafeInteger(totalMovement))throw Error('SOURCE_AMOUNT_OVERFLOW');}
   });
-  const total=openingMinor+rows.reduce((s,r)=>s+r.creditMinor-r.debitMinor,0);
-  if(total!==closingMinor)issues.push({code:'SOURCE_BALANCE_EQUATION',differenceMinor:closingMinor-total});
+  const total=Number.isSafeInteger(openingMinor)&&totalMovement!==null?openingMinor+totalMovement:null;
+  if(total!==null&&!Number.isSafeInteger(total))throw Error('SOURCE_AMOUNT_OVERFLOW');
+  if(total!==null&&Number.isSafeInteger(closingMinor)&&total!==closingMinor)issues.push({code:'SOURCE_BALANCE_EQUATION',differenceMinor:closingMinor-total});
   return issues;
 }
 const months={Jan:1,Feb:2,Mar:3,Apr:4,May:5,Jun:6,Jul:7,Aug:8,Sep:9,Oct:10,Nov:11,Dec:12};

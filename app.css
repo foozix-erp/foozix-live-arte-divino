@@ -1252,3 +1252,8 @@ body.v5-shell .workspace-tab[data-drop-side="after"]{box-shadow:inset -4px 0 0 #
 .bank-source-row-issue{margin-top:8px;padding:8px;border-radius:7px;background:#fff0ea;color:#8c3828;font-size:12px}.bank-source-row-issue summary{cursor:pointer;font-weight:700}.bank-source-row-issue[open]{line-height:1.8}
 .bank-print-source-issue{display:block;color:#9e372b;font-size:11px;line-height:1.6;margin-top:5px}@media print{.bank-print-source-issue{display:block!important;color:#8c2a21!important;font-size:7pt!important}}
 .owner-profit-pending{padding:14px 16px;border:1px solid #e6cf9b;border-radius:10px;background:#fff9e9;color:#75520e;line-height:1.8;font-weight:600}@media print{.owner-profit-pending{display:block!important;color:#604000!important;border:1px solid #ad985e!important;padding:3mm!important;font-size:8pt!important}}
+/* A no-print form remains a block on screen; the shared toolbar utility is flex. */
+.bank-source-import.no-print{display:block;min-width:0}
+.bank-source-import .form-grid>*{min-width:0}
+.bank-source-import input,.bank-source-import select{min-width:0;max-width:100%;box-sizing:border-box}
+@media(max-width:650px){.bank-source-import .form-grid{grid-template-columns:minmax(0,1fr)}.bank-source-import .bank-source-summary{grid-template-columns:minmax(0,1fr)}}
