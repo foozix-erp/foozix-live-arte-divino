@@ -1023,6 +1023,18 @@ approve.onclick=async()=>{
     grantId=result.id;execute.disabled=false;statusBox.textContent='تم اعتماد الدفعة. راجعها ثم اضغط تسجيل.';
   }catch(error){statusBox.textContent=batchFailure(error);approve.disabled=false;file.disabled=false;controls.disabled=false}
 };
+function finishBatch(results){
+  grantId=transactions=previewFingerprint=pendingParsedBatch=undefined;
+  batchEditor.reset();document.querySelector('#rows tbody').replaceChildren();
+  document.querySelector('#source-text').value='';defaultsPanel.hidden=true;warningPanel.hidden=true;
+  controls.disabled=false;file.disabled=false;file.value='';approve.disabled=true;execute.disabled=true;execute.textContent=executeLabel;
+  try{sessionStorage.removeItem(batchDraftKey);sessionStorage.removeItem(batchAttemptKey);sessionStorage.removeItem(warningKey);sessionStorage.setItem('foozix.batch.lastReceipt',JSON.stringify({at:new Date().toISOString(),results}));}catch{}
+  statusBox.textContent='✓ اكتمل تسجيل الدفعة بنجاح — '+results.length+' حركة تم تسجيلها ومطابقتها. الصفحة جاهزة لدفعة جديدة.';
+  const receipt=document.createElement('details'),summary=document.createElement('summary'),list=document.createElement('ul');
+  summary.textContent='تفاصيل الدفعة المكتملة — '+results.length+' حركة';receipt.append(summary,list);
+  for(const row of results){const item=document.createElement('li');item.textContent='الحركة '+row.transactionId+'، القيد '+row.journalId;list.append(item)}
+  preview.replaceChildren(receipt);document.querySelector('#source-text').focus();
+}
 execute.onclick=async()=>{
   if(!grantId)return;
   execute.disabled=true;
@@ -1044,12 +1056,7 @@ execute.onclick=async()=>{
     await call('directConnection.batch.repairNarratives',{id:grantId});
     const verification=await call('directConnection.batch.verify',{id:grantId,expectedCount:result.results.length});
     if(!verification?.ok)throw Error('اكتمل التسجيل لكن فشل فحص المطابقة النهائي. لا تعِد إرسال الدفعة.');
-    grantId=undefined;
-    try{sessionStorage.removeItem(batchDraftKey);sessionStorage.removeItem(batchAttemptKey);sessionStorage.removeItem(warningKey)}catch{}
-    statusBox.textContent='تم تسجيل '+result.results.length+' حركة. أرقام الحركات والقيود ظاهرة في النتيجة.';
-    const list=document.createElement('ul');
-    for(const row of result.results){const item=document.createElement('li');item.textContent='الحركة '+row.transactionId+'، القيد '+row.journalId;list.append(item)}
-    preview.replaceChildren(list);
+    finishBatch(result.results);
   }catch(error){statusBox.textContent=batchFailure(error)+' لو هتعيد المحاولة استخدم نفس الدفعة من الزر هنا.';execute.textContent='إعادة محاولة نفس الدفعة';execute.disabled=error.code==='DIRECT_APPROVAL_EXPIRED'}
 };
 const requestedBatchId=(()=>{
