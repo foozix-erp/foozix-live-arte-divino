@@ -1482,7 +1482,7 @@ window.addEventListener('afterprint',restoreCompanyPrintAmounts_);
 
 const txDynamicFieldsEmployeeBase_=txDynamicFields;
 txDynamicFields=function(type){const html=txDynamicFieldsEmployeeBase_(type);return type==='PAYROLL_PAYMENT'?txSelectSmart('employeeId',t('employee'),state.data.employees||[],'معرف الموظف')+html:html};
-const CLIENT_BUILD_='5.0.117';
+const CLIENT_BUILD_='5.0.118';
 let financialRevision_=null,financialRefreshBusy_=false,financialStale_=false,financialVersionMismatch_=false,financialRefreshFailed_=false,financialReadAt_='',financialAutoRefreshTimer_=0;
 const financialReadViews_=new Set(['dashboard','projects','finance','reports','parties','tasks','clients','employees','loans','assets','audit']);
 const financialDirtyForms_=new WeakSet();
@@ -2080,3 +2080,91 @@ document.addEventListener('click',async event=>{
  }catch(error){const code=String(error.message||'');fail(code.startsWith('PDF_')?Error(state.lang==='ar'?'تعذر تجهيز ملف PDF. أعد المحاولة.':'Could not prepare PDF. Retry.'):error);}finally{if(cleanup)cleanup();if(typeof restoreCompanyPrintAmounts_==='function')restoreCompanyPrintAmounts_();namedPdfBusy_=false;button.disabled=false;button.innerHTML=label;button.removeAttribute('aria-busy');}
 },true);
 let namedPdfScanPending_=false;new MutationObserver(()=>{if(namedPdfScanPending_)return;namedPdfScanPending_=true;queueMicrotask(()=>{namedPdfScanPending_=false;installNamedPdfButtons_();});}).observe(document.body,{childList:true,subtree:true});installNamedPdfButtons_();
+
+
+// BEGIN_GENERATED_COMPANY_REVIEW
+var FOOZIX_COMPANY_REVIEW_VIEW_=(function(){
+const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function renderCompanyReview({today, accounts = []}) {
+  return `<section class="panel company-review" dir="rtl"><style>
+  .company-review{margin-top:20px;font:16px/1.7 Tahoma,Arial,sans-serif;color:#173b36}.company-review form{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.company-review label{display:grid;gap:5px}.company-review input,.company-review select,.company-review button{min-height:44px;font:inherit;max-width:100%}.company-review .review-actions{display:flex;gap:10px;align-items:end}.company-review .review-status{padding:12px 0}.company-review .review-table{overflow:auto}.company-review table{width:100%;border-collapse:collapse;font-size:15px}.company-review th,.company-review td{padding:12px;text-align:right;border-bottom:1px solid #d6e6e0}.company-review th{background:#eaf5f1;color:#173b36}.company-review .review-amount{white-space:nowrap;direction:ltr;text-align:right;font-variant-numeric:tabular-nums}.company-review .review-totals{display:flex;gap:24px;flex-wrap:wrap;padding:12px;background:#f0f8f5}.company-review [hidden]{display:none!important}.company-review button:disabled{opacity:.6;cursor:wait}@media(max-width:700px){.company-review form{grid-template-columns:1fr 1fr}.company-review th,.company-review td{padding:8px}}@media print{.company-review form,.company-review .review-pagination{display:none}.company-review .review-table{overflow:visible}.company-review{font-size:10pt}.company-review th,.company-review td{padding:5px}}
+  .company-review{padding:24px;background:#fff;border:1px solid #d8e8e4;border-radius:18px;box-shadow:0 8px 24px #173b3608}.company-review *{box-sizing:border-box}.company-review h2{margin:0;font-size:23px}.company-review>p{color:#52746b;margin:8px 0 22px}.company-review label{font-size:14px;font-weight:600}.company-review input,.company-review select{width:100%;border:1px solid #bcd7cf;border-radius:9px;background:#fbfdfc;padding:8px 10px;color:#173b36;min-width:0}.company-review button{border:1px solid #087968;border-radius:9px;background:#087968;color:white;padding:8px 16px;cursor:pointer;white-space:nowrap}.company-review button.secondary{background:white;color:#087968}.company-review :focus-visible{outline:3px solid #69cfbb;outline-offset:2px}.company-review .review-totals{border-radius:10px;margin-bottom:12px}.company-review tbody tr:nth-child(even){background:#f7fbfa}.company-review .review-status{font-size:14px;color:#52746b}.company-review .review-pagination{margin-top:16px}@media(max-width:700px){.company-review{padding:14px}.company-review .review-actions{grid-column:1/-1}.company-review label{font-size:13px}.company-review input,.company-review select{font-size:15px}}
+  </style><h2>مراجعة حركة الحسابات</h2><p>اعرض الداخل والخارج من حسابات الشركة. حركة النقد ليست صافي الربح.</p>
+  <form class="no-print"><label>الفترة<select name="mode"><option value="MONTH">شهر كامل</option><option value="DAY">يوم محدد</option><option value="RANGE">من — إلى</option></select></label>
+  <label data-mode="MONTH">الشهر<input name="month" type="month" value="${escape(today.slice(0,7))}" required></label>
+  <label data-mode="DAY" hidden>اليوم<input name="day" type="date" value="${escape(today)}" disabled></label>
+  <label data-mode="RANGE" hidden>من<input name="from" type="date" value="${escape(today.slice(0,7)+'-01')}" disabled></label>
+  <label data-mode="RANGE" hidden>إلى<input name="to" type="date" value="${escape(today)}" disabled></label>
+  <label>الحساب<select name="accountId"><option value="">كل الحسابات</option>${accounts.map(a=>`<option value="${escape(a.id)}">${escape(a.name)}</option>`).join('')}</select></label>
+  <label>المورد أو الطرف<input name="party" placeholder="اكتب الاسم أو جزءًا منه"></label>
+  <label>نوع الحركة<select name="category"><option value="">كل الحركات</option><option value="OPERATING_EXPENSE">مصروفات الشركة والمرتبات</option><option value="BANK_FEE">رسوم البنوك</option><option value="PARTNER_WITHDRAWAL">مسحوبات الشركاء</option></select></label>
+  <label>بحث في البيان<input name="text" placeholder="مثال: رسوم، نقل، نقاشة"></label>
+  <div class="review-actions"><button type="submit">عرض الحركات</button><button type="reset" class="secondary">مسح الفلاتر</button></div></form>
+  <div class="review-status" role="status" aria-live="polite">اختر الفترة ثم اضغط عرض الحركات.</div><div class="review-export no-print" hidden><button type="button" id="printCompanyReview">تنزيل التقرير</button></div><div class="review-results"></div>
+  <div class="review-pagination no-print" hidden><button type="button" data-page="prev">السابق</button> <button type="button" data-page="next">التالي</button></div></section>`;
+}
+function bindCompanyReview(root, load) {
+  const form=root.querySelector('form'), status=root.querySelector('.review-status'), results=root.querySelector('.review-results'), pagination=root.querySelector('.review-pagination');
+  let busy=false, query=null, offset=0, generation=0;
+  const number=value=>new Intl.NumberFormat('ar-EG',{minimumFractionDigits:2,maximumFractionDigits:2}).format(value/100);
+  const exportHost=root.querySelector('.review-export');
+  root.prepareReviewReport_=async()=>{
+    if(busy||!query?.snapshotHash)throw Error('اعرض الحركات أولًا قبل تنزيل التقرير.');
+    const exportQuery={...query},exportGeneration=generation;
+    busy=true;root.setAttribute('aria-busy','true');
+    try{
+      const data=await load({...exportQuery,offset:0,exportAll:true});
+      if(exportGeneration!==generation||!root.isConnected)throw Error('أُلغيت المراجعة؛ اعرض الحركات مجددًا.');
+      if(data.snapshotHash!==exportQuery.snapshotHash)throw Error('البيانات اتحدثت. اعرض الحركات مجددًا قبل تنزيل التقرير.');
+      if(data.rows.length!==data.count||new Set(data.rows.map(row=>row.id)).size!==data.count)throw Error('تعذر تجهيز التقرير الكامل. أعد المحاولة.');
+      const sums={};for(const row of data.rows){const sum=sums[row.currency]??={inMinor:0,outMinor:0};sum.inMinor+=row.inMinor;sum.outMinor+=row.outMinor;}
+      for(const [currency,total]of Object.entries(data.totalsByCurrency))if((sums[currency]?.inMinor||0)!==total.inMinor||(sums[currency]?.outMinor||0)!==total.outMinor)throw Error('تعذر التحقق من إجماليات التقرير.');
+      const account=data.accounts?.find(row=>row.id===exportQuery.accountId)?.name||'كل الحسابات';
+      const report=document.createElement('article');report.className='formal-report company-review';report.dir='rtl';
+      report.dataset.printTitle=`مراجعة حركة الحسابات - ${account} - ${data.from} - ${data.to}`;
+      const categories={BANK_FEE:'رسوم البنوك',OPERATING_EXPENSE:'مصروفات الشركة والمرتبات',PARTNER_WITHDRAWAL:'مسحوبات الشركاء'};
+      const filters=[account,exportQuery.party&&`الطرف: ${exportQuery.party}`,exportQuery.text&&`البحث: ${exportQuery.text}`,exportQuery.category&&`نوع الحركة: ${categories[exportQuery.category]||''}`].filter(Boolean).join(' — ');
+      report.innerHTML=`<header class="report-head"><div><h1>مراجعة حركة الحسابات</h1><p>${escape(data.from)} — ${escape(data.to)}</p><p>${escape(filters)}</p></div></header><p>عدد الحركات: ${data.count}. حركة النقد ليست صافي الربح. هذا التقرير لا يثبت اكتمال المطابقة البنكية.</p>${data.issues?.length?'<p>توجد سجلات تحتاج استكمال الربط في هذه الفترة.</p>':''}<div class="report-totals">${Object.entries(data.totalsByCurrency).map(([currency,total])=>`<p>إجمالي الداخل: ${number(total.inMinor)} ${escape(currency)} — إجمالي الخارج: ${number(total.outMinor)} ${escape(currency)}</p>`).join('')}</div><table><thead><tr>${['التاريخ','البيان','الطرف','الحساب','داخل','خارج'].map(label=>`<th>${label}</th>`).join('')}</tr></thead><tbody>${data.rows.map(row=>`<tr><td>${escape(row.date)}</td><td>${escape(row.description)}</td><td>${escape(row.party||'—')}</td><td>${escape(row.accountName)}</td><td>${row.inMinor?number(row.inMinor):'—'}</td><td>${row.outMinor?number(row.outMinor):'—'}</td></tr>`).join('')}</tbody></table>`;
+      return report;
+    }finally{busy=false;root.removeAttribute('aria-busy');}
+  };
+  function modes(){for(const label of form.querySelectorAll('[data-mode]')){const active=label.dataset.mode===form.elements.mode.value;label.hidden=!active;for(const input of label.querySelectorAll('input')){input.disabled=!active;input.required=active;}}}
+  function read(){const data=Object.fromEntries(new FormData(form));let from,to;
+    if(data.mode==='DAY')from=to=data.day;
+    else if(data.mode==='MONTH'){from=data.month+'-01';const [year,month]=data.month.split('-').map(Number);to=data.month+'-'+new Date(Date.UTC(year,month,0)).getUTCDate();}
+    else {from=data.from;to=data.to;}
+    if(!from||!to||from>to)throw Error('اختر فترة صحيحة؛ تاريخ البداية يجب أن يسبق النهاية.');
+    return {from,to,accountId:data.accountId,party:data.party,text:data.text,category:data.category,limit:100};
+  }
+  async function show(nextOffset){if(busy)return;busy=true;const run=++generation;
+    for(const button of root.querySelectorAll('button'))button.disabled=true;
+    status.textContent='جارٍ تحميل الحركات…';root.setAttribute('aria-busy','true');
+    try{const data=await load({...query,offset:nextOffset});if(run!==generation||!root.isConnected)return;offset=nextOffset;
+      if(query.snapshotHash&&data.snapshotHash!==query.snapshotHash)throw Error('REVIEW_SOURCE_CHANGED');
+      query={...query,snapshotHash:data.snapshotHash};
+      exportHost.hidden=false;
+      status.textContent=`${data.from} إلى ${data.to} — ${data.count} حركة${data.count?`؛ عرض ${offset+1}–${Math.min(offset+data.rows.length,data.count)}`:''}.`;
+      results.innerHTML=`<div class="review-totals">${Object.entries(data.totalsByCurrency).map(([currency,t])=>`<span>إجمالي الداخل: <strong>${number(t.inMinor)} ${escape(currency)}</strong></span><span>إجمالي الخارج: <strong>${number(t.outMinor)} ${escape(currency)}</strong></span>`).join('')}</div>${data.issues?.length?'<p>توجد سجلات في هذه الفترة تحتاج استكمال الربط؛ هذا العرض لا يثبت اكتمال المطابقة البنكية.</p>':''}${data.excludedUndatedCount?`<p>${data.excludedUndatedCount} حركة بلا يوم محدد؛ لم نوزعها بالتخمين.</p>`:''}<div class="review-table"><table><thead><tr>${['التاريخ','البيان','الطرف','الحساب','داخل','خارج'].map(x=>`<th scope="col">${x}</th>`).join('')}</tr></thead><tbody>${data.rows.map(row=>`<tr><td>${escape(row.date)}</td><td>${escape(row.description)}</td><td>${escape(row.party||'—')}</td><td>${escape(row.accountName)}</td><td class="review-amount">${row.inMinor?number(row.inMinor):'—'}</td><td class="review-amount">${row.outMinor?number(row.outMinor):'—'}</td></tr>`).join('')||'<tr><td colspan="6">لا توجد حركات تطابق الاختيارات.</td></tr>'}</tbody></table></div>`;
+      pagination.hidden=data.count<=data.limit;
+      pagination.querySelector('[data-page="prev"]').dataset.unavailable=String(offset===0);
+      pagination.querySelector('[data-page="next"]').dataset.unavailable=String(offset+data.rows.length>=data.count);
+    }catch(error){if(run===generation&&root.isConnected){status.textContent=error.message==='REVIEW_SOURCE_CHANGED'?'البيانات اتحدثت أثناء المراجعة. اضغط عرض الحركات لتحميل نسخة محدثة كاملة.':'تعذّر تحميل المراجعة: '+error.message;results.innerHTML='';pagination.hidden=true;exportHost.hidden=true;}}
+    finally{busy=false;if(run===generation&&root.isConnected){root.removeAttribute('aria-busy');for(const button of root.querySelectorAll('button'))button.disabled=button.dataset.unavailable==='true';}}
+  }
+  form.addEventListener('change',event=>{if(event.target.name==='mode')modes();});
+  form.addEventListener('submit',event=>{event.preventDefault();if(busy)return;try{query=read();show(0);}catch(error){status.textContent=error.message;}});
+  form.addEventListener('reset',()=>{generation++;query=null;offset=0;results.innerHTML='';pagination.hidden=true;exportHost.hidden=true;status.textContent='تم مسح الفلاتر. اختر الفترة ثم اعرض الحركات.';setTimeout(modes,0);});
+  pagination.addEventListener('click',event=>{const button=event.target.closest('[data-page]');if(button&&query)show(Math.max(0,offset+(button.dataset.page==='next'?100:-100)));});
+  modes();
+}
+
+return {render:renderCompanyReview,bind:bindCompanyReview};})();
+
+const companyReviewOwnerBase_=ownerMonthlyPerformancePanel_;
+ownerMonthlyPerformancePanel_=function(){const base=companyReviewOwnerBase_();if(!base)return base;const accounts=(state.data.cashAccounts||[]).map(row=>({id:String(row['معرف الحساب النقدي']),name:row['الاسم']}));return base+FOOZIX_COMPANY_REVIEW_VIEW_.render({today:new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Cairo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()),accounts});};
+const companyReviewRenderBase_=render;
+render=function(){companyReviewRenderBase_();document.querySelectorAll('.company-review').forEach(root=>{if(root.dataset.bound)return;root.dataset.bound='true';FOOZIX_COMPANY_REVIEW_VIEW_.bind(root,async payload=>{const response=await api('accounting.companyReview',payload);if(!response.ok)throw new Error(msg(response));return response.data;});});};
+namedPdfPrintIds_.add('printCompanyReview');
+const companyReviewPdfTargetBase_=namedPdfTarget_;
+namedPdfTarget_=async function(id){if(id==='printCompanyReview'){const root=document.getElementById(id)?.closest('.company-review');if(!root?.prepareReviewReport_)throw Error('اعرض الحركات أولًا.');return root.prepareReviewReport_();}return companyReviewPdfTargetBase_(id);};
+// END_GENERATED_COMPANY_REVIEW
