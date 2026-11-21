@@ -1,0 +1,40 @@
+{
+  "formatVersion": 1,
+  "source": "Pinned npm packages verified against registry SHA-512; browser-only local rendering",
+  "packages": [
+    {
+      "name": "jspdf",
+      "version": "4.2.1",
+      "registryIntegrity": "sha512-YyAXyvnmjTbR4bHQRLzex3CuINCDlQnBqoSYyjJwTP2x9jDLuKDzy7aKUl0hgx3uhcl7xzg32agn5vlie6HIlQ==",
+      "files": [
+        {
+          "name": "JSPDF-LICENSE.txt",
+          "size": 1142,
+          "sha256": "dc388ec35ff463288cdde3588a36fd4ed12a45deff053243b37309acc9ef583b"
+        },
+        {
+          "name": "jspdf-4.2.1.umd.min.js",
+          "size": 420165,
+          "sha256": "e6551fcdc32f09d6853b2c5126d18d01d9447e0da618a41a11ebeee0f6c20d54"
+        }
+      ]
+    },
+    {
+      "name": "html2canvas-pro",
+      "version": "2.6.4",
+      "registryIntegrity": "sha512-1SMOfXwMACgQPt1wcKOtuRnBxkcREiJQdOyVpgp6a4/z9Rb/v7QPcvyu5GlxdDDiMznLwKxX5KwvtSlNlZJ7Wg==",
+      "files": [
+        {
+          "name": "HTML2CANVAS-PRO-LICENSE.txt",
+          "size": 1108,
+          "sha256": "934c3e7d2b010f3eef0b7fa06899b73e4b82c296f898490958bd5c42654c459c"
+        },
+        {
+          "name": "html2canvas-pro-2.6.4.min.js",
+          "size": 219746,
+          "sha256": "496eb74a3fc6f60349e733cc66ad369c4817e1a4d6fa65778f82bdfa10393cc1"
+        }
+      ]
+    }
+  ]
+}
