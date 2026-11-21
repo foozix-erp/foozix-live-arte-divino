@@ -630,16 +630,29 @@ const loadWithEmployeeDedup_=load;load=async function(){await loadWithEmployeeDe
 const bootstrapWithEmployeeDedup_=applyBootstrap_;applyBootstrap_=function(data){if(data&&data.data&&Array.isArray(data.data.employees))data.data.employees=uniqueEmployees_(data.data.employees);const result=bootstrapWithEmployeeDedup_(data);normalizeEmployeeState_();return result};
 const printPreparedBase_=printPrepared_;
 function printFileName_(target){
-  const today=new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,10),clean=value=>String(value||'').replace(/[\\/:*?"<>|]+/g,' ').replace(/\s+/g,' ').trim(),report=state.data.projectReport||{},project=(state.data.projects||[]).find(x=>String(x['معرف المشروع'])===String(state.data.reportProjectId||report.projectId||'')),client=(state.data.clients||[]).find(x=>String(x['معرف العميل'])===String(project?.['معرف العميل']||report.clientId||''));
+  const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Cairo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date()),part=key=>parts.find(x=>x.type===key).value,today=part('year')+'-'+part('month')+'-'+part('day'),clean=value=>String(value||'').replace(/[\\/:*?"<>|]+/g,' ').replace(/\s+/g,' ').trim(),report=state.data.projectReport||{},project=report.project||(state.data.projects||[]).find(x=>String(x['معرف المشروع'])===String(report.projectId||state.data.reportProjectId||'')),client=report.client||(state.data.clients||[]).find(x=>String(x['معرف العميل'])===String(project?.['معرف العميل']||report.clientId||''));
   if(target?.dataset?.printTitle)return clean(`${target.dataset.printTitle} - ${today}`);
-  if(target?.classList.contains('project-statement-report'))return clean(`كشف حساب - ${project?.['الاسم العربي']||project?.['الاسم الإنجليزي']||'مشروع'} - ${client?.['الاسم العربي']||client?.['الاسم الإنجليزي']||'عميل'} - ${today}`);
-  if(state.data.periodReport?.kind==='PAYROLL')return clean(`المرتبات - ${state.data.periodReport.fromDate||''} - ${state.data.periodReport.toDate||''} - ${today}`);
+  if(target?.classList.contains('project-statement-report')||target?.id==='reportOutput')return clean(`كشف حساب - ${project?.['الاسم العربي']||project?.['الاسم الإنجليزي']||'مشروع'} - ${client?.['الاسم العربي']||client?.['الاسم الإنجليزي']||'عميل'} - ${today}`);
+  if(state.data.periodReport?.kind==='PAYROLL'&&/مرتبات|رواتب|payroll|salary/i.test(target?.querySelector('.report-head h1,h1')?.textContent||''))return clean(`المرتبات - ${state.data.periodReport.fromDate||''} - ${state.data.periodReport.toDate||''} - ${today}`);
   const title=target?.querySelector('.report-head h1,h1')?.textContent||'FOOZIX Report';return clean(`${title} - ${today}`);
 }
-function printReportTarget_(target){
-  if(!target)return printPreparedBase_();const reports=[...document.querySelectorAll('.formal-report')],previous=document.title,cleanup=()=>{document.body.classList.remove('single-report-print');reports.forEach(x=>x.classList.remove('print-target'));document.title=previous;window.removeEventListener('afterprint',cleanup)};
-  reports.forEach(x=>x.classList.toggle('print-target',x===target));document.body.classList.add('single-report-print');document.title=printFileName_(target);window.addEventListener('afterprint',cleanup,{once:true});window.print();setTimeout(cleanup,30000);
+var activeReportPrintCleanup_=null;
+function prepareReportPrint_(target){
+  if(!target)return null;if(activeReportPrintCleanup_)activeReportPrintCleanup_();
+  const reports=[...document.querySelectorAll('.formal-report')],previous=document.title,root=document.createElement('div'),pageStyle=document.createElement('style');let finished=false;
+  reports.forEach(x=>x.classList.toggle('print-target',x===target));
+  root.id='foozixPrintRoot';root.setAttribute('aria-hidden','true');const copy=target.cloneNode(true);copy.classList.add('formal-report','print-target');copy.removeAttribute('id');
+  copy.querySelectorAll('.no-print,.no-print-control,.report-options,.statement-tools,.statement-mobile-cards,button,input,select,textarea,script').forEach(x=>x.remove());copy.querySelectorAll('[id]').forEach(x=>x.removeAttribute('id'));root.append(copy);
+  copy.querySelectorAll('td,.screen-money,.card strong,.report-summary strong').forEach(cell=>{const match=cell.textContent.trim().match(/^(-?[\d,]+(?:\.\d+)?)\s*(ج\.م|EGP)$/);if(!match)return;const value=document.createElement('span'),unit=document.createElement('span');value.className='print-money-number';value.dir='ltr';value.textContent=match[1];unit.className='print-money-currency';unit.textContent=match[2];cell.replaceChildren(value,unit);});
+  copy.querySelectorAll('td').forEach(cell=>{const text=cell.textContent.trim();if(!/^\d{4}-\d{2}-\d{2}T\S+$/.test(text))return;const instant=new Date(text);if(!Number.isFinite(instant.getTime()))return;cell.textContent=/(?:Z|[+-]\d{2}:\d{2})$/i.test(text)?new Intl.DateTimeFormat('en-GB',{timeZone:'Africa/Cairo',year:'numeric',month:'2-digit',day:'2-digit'}).format(instant):text.slice(8,10)+'/'+text.slice(5,7)+'/'+text.slice(0,4);});
+  copy.querySelectorAll('table').forEach(table=>{const headings=[...table.querySelectorAll('thead tr:last-child th')];if(headings.length<=8)return;const list=document.createElement('section');list.className='print-record-list';table.querySelectorAll('tbody tr,tfoot tr').forEach(row=>{const card=document.createElement('article'),grid=document.createElement('dl');card.className='print-record-card '+row.className;grid.className='print-record-grid';let column=0;[...row.cells].forEach(cell=>{const field=document.createElement('div'),label=document.createElement('dt'),value=document.createElement('dd'),span=cell.colSpan||1;field.className='print-record-field';label.textContent=headings.slice(column,column+span).map(h=>h.textContent.trim()).join(' / ');column+=span;value.className='print-record-value '+cell.className;[...cell.childNodes].forEach(n=>value.append(n.cloneNode(true)));field.append(label,value);grid.append(field);});card.append(grid);list.append(card);});table.replaceWith(list);});
+  const issued=document.createElement('p');issued.className='print-issue-date';issued.textContent=(state.lang==='ar'?'تاريخ الطباعة: ':'Printed on: ')+(printFileName_(target).match(/\d{4}-\d{2}-\d{2}$/)?.[0]||'');(copy.querySelector('.report-head h1')?.parentElement||copy).append(issued);
+  pageStyle.id='foozixPrintPageStyle';pageStyle.textContent='@page{size:A4 portrait;margin:10mm}';document.head.append(pageStyle);document.body.append(root);document.body.classList.add('single-report-print','foozix-printing');document.title=printFileName_(target);
+  const cleanup=()=>{if(finished)return;finished=true;root.remove();pageStyle.remove();document.body.classList.remove('single-report-print','foozix-printing');reports.forEach(x=>x.classList.remove('print-target'));document.title=previous;window.removeEventListener('afterprint',cleanup);if(activeReportPrintCleanup_===cleanup)activeReportPrintCleanup_=null;};
+  activeReportPrintCleanup_=cleanup;window.addEventListener('afterprint',cleanup,{once:true});return cleanup;
 }
+function printReportTarget_(target){if(!target)return printPreparedBase_();const cleanup=prepareReportPrint_(target);try{window.print()}catch(error){cleanup();throw error}}
+window.addEventListener('beforeprint',()=>{if(activeReportPrintCleanup_)return;const reports=[...document.querySelectorAll('.formal-report')].filter(x=>x.textContent.trim()&&x.getClientRects().length);if(reports.length)prepareReportPrint_(reports[reports.length-1]);});
 printPrepared_=function(){const reports=[...document.querySelectorAll('.formal-report')].filter(x=>x.textContent.trim());return reports.length?printReportTarget_(reports[reports.length-1]):printPreparedBase_()};
 
 // Release 4.2: safe master-data editing, client-report privacy controls and complete statements.
@@ -1434,7 +1447,7 @@ window.addEventListener('afterprint',restoreCompanyPrintAmounts_);
 
 const txDynamicFieldsEmployeeBase_=txDynamicFields;
 txDynamicFields=function(type){const html=txDynamicFieldsEmployeeBase_(type);return type==='PAYROLL_PAYMENT'?txSelectSmart('employeeId',t('employee'),state.data.employees||[],'معرف الموظف')+html:html};
-const CLIENT_BUILD_='5.0.113';
+const CLIENT_BUILD_='5.0.114';
 let financialRevision_=null,financialRefreshBusy_=false,financialStale_=false,financialVersionMismatch_=false,financialRefreshFailed_=false,financialReadAt_='',financialAutoRefreshTimer_=0;
 const financialReadViews_=new Set(['dashboard','projects','finance','reports','parties','tasks','clients','employees','loans','assets','audit']);
 const financialDirtyForms_=new WeakSet();
