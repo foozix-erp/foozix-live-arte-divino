@@ -139,7 +139,7 @@ document.addEventListener('click',event=>{const button=event.target.closest('but
 document.addEventListener('submit',event=>{const button=event.submitter||event.target.querySelector('button[type="submit"],button:not([type])');if(button)captureActionButton_(button)},true);
 const pendingReads_=new Map();
 let api=(action,payload={})=>{
-  const readOnly=/^(app\.(bootstrap|freshness)|view\.load|profile|report\.|accounting\.|finance\.(dashboard|statements)|notification\.list|agreement\.list)/.test(action);
+  const readOnly=/^(app\.(bootstrap|freshness)|view\.load|profile|report\.|accounting\.|finance\.(dashboard|statements)|bank\.statement\.feePreview$|notification\.list|agreement\.list)/.test(action);
   const operationId=readOnly?'':'WEB-'+crypto.randomUUID(),request={action,payload,sessionToken:sessionToken_(),operationId},key=JSON.stringify(request);
   if(readOnly&&pendingReads_.has(key))return pendingReads_.get(key);
   const busyButton=readOnly?null:beginActionButton_();
@@ -1482,7 +1482,7 @@ window.addEventListener('afterprint',restoreCompanyPrintAmounts_);
 
 const txDynamicFieldsEmployeeBase_=txDynamicFields;
 txDynamicFields=function(type){const html=txDynamicFieldsEmployeeBase_(type);return type==='PAYROLL_PAYMENT'?txSelectSmart('employeeId',t('employee'),state.data.employees||[],'معرف الموظف')+html:html};
-const CLIENT_BUILD_='5.0.119';
+const CLIENT_BUILD_='5.0.120';
 let financialRevision_=null,financialRefreshBusy_=false,financialStale_=false,financialVersionMismatch_=false,financialRefreshFailed_=false,financialReadAt_='',financialAutoRefreshTimer_=0;
 const financialReadViews_=new Set(['dashboard','projects','finance','reports','parties','tasks','clients','employees','loans','assets','audit']);
 const financialDirtyForms_=new WeakSet();
@@ -1505,7 +1505,7 @@ async function financialReadRevision_(){
   financialVersionMismatch_=response.data.version!==CLIENT_BUILD_;return response.data;
 }
 const financialApiBase_=api;
-const financialMutation_=action=>!/^bank\.statement\.(defaults|list|matches|report|allocations)$/.test(action)&&/^(transaction\.(create|createAndSubmit|submit|post|correct|reclassify|cancelDuplicate|cancel)|return\.(create|customerGrouped)|master\.(create|update)|approval\.decide|agreement\.(create|amend|certify)|employee\.change|loan\.(create|repay|edit)|payroll\.(saveDetail|submit|lock|ensure)|markup\.(allocate|usageSave|usageBatchSave|usageDecide)|project\.closing\.request|period\.|bank\.|backup\.restore)/.test(action);
+const financialMutation_=action=>!/^bank\.statement\.(defaults|list|matches|report|allocations|feePreview)$/.test(action)&&/^(transaction\.(create|createAndSubmit|submit|post|correct|reclassify|cancelDuplicate|cancel)|return\.(create|customerGrouped)|master\.(create|update)|approval\.decide|agreement\.(create|amend|certify)|employee\.change|loan\.(create|repay|edit)|payroll\.(saveDetail|submit|lock|ensure)|markup\.(allocate|usageSave|usageBatchSave|usageDecide)|project\.closing\.request|period\.|bank\.|backup\.restore)/.test(action);
 function financialQueueRefresh_(delay=50){clearTimeout(financialAutoRefreshTimer_);financialAutoRefreshTimer_=setTimeout(()=>refreshFinancialData_(),delay);}
 api=async function(action,payload){const activeForm=document.activeElement?.form||document.activeElement?.closest?.('form'),response=await financialApiBase_(action,payload);if(response?.ok&&financialMutation_(action)){if(activeForm)financialDirtyForms_.delete(activeForm);financialMarkStale_();try{localStorage.setItem('foozix.dataChanged',String(Date.now()));}catch(error){}financialQueueRefresh_();}return response;};
 const financialLoadBase_=load;
@@ -2168,3 +2168,26 @@ namedPdfPrintIds_.add('printCompanyReview');
 const companyReviewPdfTargetBase_=namedPdfTarget_;
 namedPdfTarget_=async function(id){if(id==='printCompanyReview'){const root=document.getElementById(id)?.closest('.company-review');if(!root?.prepareReviewReport_)throw Error('اعرض الحركات أولًا.');return root.prepareReviewReport_();}return companyReviewPdfTargetBase_(id);};
 // END_GENERATED_COMPANY_REVIEW
+// Staged UI: all controls scoped to the selected source statement.
+var bankFeeReviewState_={};
+function bankFeeReviewHtml_(){
+ const id=String(bankReviewState_.data?.statement?.['معرف الكشف']||'');if(!id)return '';
+ const ar=state.lang==='ar',s=bankFeeReviewState_[id]||{},data=s.data;
+ const labels={NO_EXISTING_CHARGE_CANDIDATE:ar?'يحتاج تأكيد المصدر قبل التسجيل':'Review source before recording',EXISTING_POSTED_CHARGE:ar?'مسجل بالفعل':'Already recorded',COMBINED_PAYMENT_SPLIT_REVIEW:ar?'قد يكون داخل دفعة أكبر؛ يحتاج فصلًا':'May be included in a larger payment',SOURCE_OR_LEDGER_REVIEW_REQUIRED:ar?'المصدر أو القيود تحتاج مراجعة':'Source or ledger needs review',EXISTING_BANK_ALLOCATION_REVIEW:ar?'يوجد ربط بنكي سابق؛ راجعه':'Existing bank allocation needs review'};
+ const rows=(data?.rows||[]).map((r,i)=>`<tr><td><bdi>${esc(r.date)}</bdi><small><bdi>${esc(r.reference)}</bdi></small></td><td>${money(r.amountMinor/100)}</td><td>${esc(labels[r.status]||(ar?'يوجد تسجيل محتمل؛ راجعه لتجنب التكرار':'Possible existing expense; review to avoid duplication'))}</td><td>${r.status==='NO_EXISTING_CHARGE_CANDIDATE'&&canAction('finance','create')?`<label class="check-line"><input type="checkbox" data-fee-confirm="${i}">${ar?'راجعت المصدر وعدم التكرار':'Source and duplicates reviewed'}</label><button type="button" class="primary" data-fee-save="${i}" ${s.saving?'disabled':''}>${ar?'تسجيل الرسم':'Record fee'}</button>`:''}</td></tr>`).join('');
+ return `<section class="panel bank-fee-review no-print"><h2>${ar?'رسوم البنك في الكشف':'Bank charges in this statement'}</h2><p>${ar?'الرسوم المسجلة أو المحتمل دخولها ضمن دفعة أخرى لا تُسجل مرة ثانية. إقفال الشهر له مراجعة مستقلة.':'Existing or combined charges must not be recorded again. Month close requires separate reconciliation.'}</p><button type="button" class="secondary" id="loadBankFeeReview" ${s.loading||s.saving?'disabled':''}>${s.loading?(ar?'جارٍ الفحص…':'Checking…'):(ar?'فحص رسوم الكشف':'Review statement charges')}</button>${s.error?`<p class="notice error" role="alert">${esc(s.error)}</p>`:''}${data?`<div class="report-table"><table><thead><tr>${(ar?['التاريخ والمرجع','الرسم','نتيجة المراجعة','الإجراء']:['Date and reference','Charge','Review result','Action']).map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>${rows||`<tr><td colspan="4">${ar?'لا توجد رسوم مؤهلة للتسجيل ضمن قواعد المصدر الحالية.':'No eligible charges under the current source rules.'}</td></tr>`}</tbody></table></div>${data.sourceReviewEvents?.length?`<p class="notice error">${ar?'سطور مصدر تحتاج مراجعة قبل التصنيف:':'Source rows needing review before classification:'} ${data.sourceReviewEvents.length}</p>`:''}<label class="field">${ar?'ملاحظة المراجعة المطلوبة للتسجيل':'Required review evidence'}<textarea id="bankFeeEvidence" rows="2" minlength="3" maxlength="2000">${esc(s.evidence||'')}</textarea></label>`:''}</section>`;
+}
+const bankFeePreviousReviewPanel_=bankSourceReviewPanel_;
+bankSourceReviewPanel_=function(){const panel=bankFeePreviousReviewPanel_(),fee=bankFeeReviewHtml_(),position=panel.indexOf('<div class="notice">');return position<0?panel+fee:panel.slice(0,position)+fee+panel.slice(position);};
+document.addEventListener('input',function(event){if(event.target.id!=='bankFeeEvidence')return;const id=String(bankReviewState_.data?.statement?.['معرف الكشف']||'');if(id)(bankFeeReviewState_[id]||(bankFeeReviewState_[id]={})).evidence=event.target.value;},true);
+document.addEventListener('click',async function(event){
+ const button=event.target.closest('#loadBankFeeReview,[data-fee-save]');if(!button)return;event.preventDefault();
+ const id=String(bankReviewState_.data?.statement?.['معرف الكشف']||'');if(!id)return;const s=bankFeeReviewState_[id]||(bankFeeReviewState_[id]={});if(s.loading||s.saving)return;
+ const saving=button.hasAttribute('data-fee-save'),row=s.data?.rows?.[Number(button.dataset.feeSave)];
+ if(saving&&(!row||row.status!=='NO_EXISTING_CHARGE_CANDIDATE'||!document.querySelector('[data-fee-confirm="'+button.dataset.feeSave+'"]')?.checked||!s.evidence?.trim()||s.evidence.trim().length<3)){s.error=state.lang==='ar'?'أكد مراجعة المصدر واكتب ملاحظة المراجعة أولًا.':'Confirm the source and enter review evidence first.';render();return;}
+ s.loading=!saving;s.saving=saving;s.error='';const busy=beginActionButton_(button);render();
+ try{
+  if(saving){const result=await api('bank.statement.submitFee',{id,eventKey:row.eventKey,sourceFingerprint:row.sourceFingerprint,reviewed:true,evidence:s.evidence.trim()});if(!result.ok)throw Error(msg(result));state.notice={type:'ok',text:state.lang==='ar'?'تم تسجيل الرسم؛ المراجعة المالية المعتادة باقية.':'Fee recorded; normal financial review remains pending.'};}
+  const response=await api('bank.statement.feePreview',{id});if(!response.ok)throw Error(msg(response));s.data=response.data;
+ }catch(error){s.error=String(error.message||error);}finally{s.loading=false;s.saving=false;endActionButton_(busy);render();}
+},true);

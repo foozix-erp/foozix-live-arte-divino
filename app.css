@@ -1290,3 +1290,6 @@ body.v5-shell .workspace-tab[data-drop-side="after"]{box-shadow:inset -4px 0 0 #
   #foozixPrintRoot .notice{display:block!important;break-inside:avoid!important}
   #foozixPrintRoot .print-issue-date{white-space:nowrap!important;font-size:8pt!important}
 }
+
+/* Source-bound bank fee review */
+.bank-fee-review.no-print{display:block;min-width:0}.bank-fee-review>.report-table{margin:16px 0}.bank-fee-review table{width:100%;table-layout:fixed}.bank-fee-review td{vertical-align:top;overflow-wrap:anywhere}.bank-fee-review td small{display:block}.bank-fee-review>.field{display:grid;max-width:100%;min-width:0;margin-top:16px}.bank-fee-review textarea{width:100%;box-sizing:border-box}.bank-fee-review .check-line{white-space:normal;line-height:1.7}@media(max-width:650px){.bank-fee-review table,.bank-fee-review tbody{display:block}.bank-fee-review thead{display:none}.bank-fee-review tr{display:block;border:1px solid #d3e5df;border-radius:12px;margin:12px 0;padding:12px}.bank-fee-review td{display:block;border:0!important;padding:6px!important}.bank-fee-review .report-table{overflow:visible}.bank-fee-review button{max-width:100%;white-space:normal}}
